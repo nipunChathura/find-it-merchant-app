@@ -1,41 +1,52 @@
 /**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * Modern Blue Theme — Safe & Professional
+ * Best for: Business apps, Admin panels, Finance apps
  */
 
 import { Platform } from 'react-native';
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+// Light theme
+const primary = '#2563EB';      // Blue 600
+const secondary = '#1E40AF';    // Blue 800
+const backgroundLight = '#F8FAFC';
+const textPrimaryLight = '#0F172A';
+const accent = '#38BDF8';       // Sky 400
+
+// Dark theme (derived)
+const backgroundDark = '#0F172A';
+const textPrimaryDark = '#F8FAFC';
+const iconDark = '#94A3B8';
 
 export const Colors = {
   light: {
-    text: '#11181C',
-    background: '#fff',
-    tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
+    text: textPrimaryLight,
+    background: backgroundLight,
+    tint: primary,
+    secondary,
+    accent,
+    icon: '#64748B',
+    tabIconDefault: '#64748B',
+    tabIconSelected: primary,
+    border: '#E2E8F0',
   },
   dark: {
-    text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
+    text: textPrimaryDark,
+    background: backgroundDark,
+    tint: accent,
+    secondary: '#60A5FA',
+    accent,
+    icon: iconDark,
+    tabIconDefault: iconDark,
+    tabIconSelected: accent,
+    border: '#334155',
   },
 };
 
 export const Fonts = Platform.select({
   ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
     sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
     serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
     rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
     mono: 'ui-monospace',
   },
   default: {

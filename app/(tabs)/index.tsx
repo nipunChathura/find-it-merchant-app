@@ -1,98 +1,276 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useRouter } from 'expo-router';
+import React from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import {
+    ActionButton,
+    EmptyState,
+    NotificationItem,
+    OutletCard,
+    ScreenContainer,
+    SectionHeader,
+    SummaryCard,
+    SummaryCardSkeleton,
+} from '@/components/dashboard';
+import { useAuth } from '@/context/auth-context';
+import { useDashboardData } from '@/hooks/useDashboardData';
+import { colors } from '@/theme/colors';
+import { spacing } from '@/theme/spacing';
+import { fontSizes, fontWeights } from '@/theme/typography';
 
-export default function HomeScreen() {
+export default function DashboardScreen() {
+  const router = useRouter();
+  const { user } = useAuth();
+  const {
+    summary,
+    outlets,
+    notifications,
+    loading,
+    refreshing,
+    refresh,
+    role,
+  } = useDashboardData();
+
+  const displayName = user?.username ?? 'Merchant';
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <ScreenContainer
+      refreshing={refreshing}
+      onRefresh={refresh}
+    >
+      {/* 1. Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <Text style={styles.welcome} numberOfLines={1}>Find It Merchant</Text>
+          <Text style={styles.subtitle}>Today's overview</Text>
+        </View>
+        <View style={styles.headerRight}>
+          <View style={styles.iconButton}>
+            <MaterialIcons name="notifications" size={24} color={colors.textPrimary} />
+            <View style={styles.badge} />
+          </View>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>
+              {displayName.charAt(0).toUpperCase()}
+            </Text>
+          </View>
+        </View>
+      </View>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      {/* 2. Summary Cards (2x2) */}
+      <View style={styles.section}>
+        {loading ? (
+          <View style={styles.grid}>
+            {[1, 2, 3, 4].map((i) => (
+              <View key={i} style={styles.gridItem}>
+                <SummaryCardSkeleton />
+              </View>
+            ))}
+          </View>
+        ) : summary ? (
+          <View style={styles.grid}>
+            <View style={styles.gridItem}>
+              <SummaryCard
+                title="Total Outlets"
+                value={summary.totalOutlets}
+                subtext={role === 'SUBMERCHANT' ? 'Assigned to you' : 'All outlets'}
+                icon="store"
+              />
+            </View>
+            <View style={styles.gridItem}>
+              <SummaryCard
+                title="Active Outlets"
+                value={summary.activeOutlets}
+                subtext="Currently open"
+                icon="check-circle"
+              />
+            </View>
+            <View style={styles.gridItem}>
+              <SummaryCard
+                title="Total Items"
+                value={summary.totalItems}
+                subtext="Across outlets"
+                icon="inventory"
+              />
+            </View>
+            <View style={styles.gridItem}>
+              <SummaryCard
+                title="Pending Payments"
+                value={summary.pendingPayments}
+                subtext="Requires action"
+                icon="payment"
+              />
+            </View>
+          </View>
+        ) : null}
+      </View>
+
+      {/* 3. Quick Actions */}
+      <View style={styles.section}>
+        <SectionHeader title="Quick Actions" />
+        <View style={styles.actionsRow}>
+          <ActionButton
+            label="Add New Outlet"
+            icon="add-business"
+            onPress={() => {}}
+            primary
+          />
+          <ActionButton
+            label="Manage Items"
+            icon="inventory-2"
+            onPress={() => {}}
+          />
+        </View>
+        <View style={styles.actionsRow}>
+          <ActionButton
+            label="Manage Schedule"
+            icon="schedule"
+            onPress={() => {}}
+          />
+          <ActionButton
+            label="Make Payment"
+            icon="payment"
+            onPress={() => {}}
+          />
+        </View>
+      </View>
+
+      {/* 4. Outlet Preview */}
+      <View style={styles.section}>
+        <SectionHeader
+          title="Outlets"
+          actionLabel="View All"
+          onAction={() => router.push('/(tabs)/outlets')}
+        />
+        {loading ? (
+          <View style={styles.outletPlaceholder} />
+        ) : outlets.length === 0 ? (
+          <EmptyState
+            icon="store"
+            title="No outlets"
+            message={
+              role === 'SUBMERCHANT'
+                ? 'No outlets assigned to you yet.'
+                : 'Add your first outlet to get started.'
+            }
+          />
+        ) : (
+          outlets.map((outlet) => (
+            <OutletCard
+              key={outlet.id}
+              outlet={outlet}
+              onPress={() => {}}
+            />
+          ))
+        )}
+      </View>
+
+      {/* 5. Recent Notifications */}
+      <View style={styles.section}>
+        <SectionHeader
+          title="Recent Notifications"
+          actionLabel="View All"
+          onAction={() => {}}
+        />
+        {loading ? (
+          <View style={styles.notifPlaceholder} />
+        ) : notifications.length === 0 ? (
+          <EmptyState
+            icon="notifications"
+            title="No notifications"
+            message="You're all caught up."
+          />
+        ) : (
+          notifications.map((n) => (
+            <NotificationItem key={n.id} notification={n} />
+          ))
+        )}
+      </View>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xl,
+    minHeight: 48,
+  },
+  headerLeft: {
+    flex: 1,
+    minWidth: 0,
+  },
+  headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
+    flexShrink: 0,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  welcome: {
+    fontSize: fontSizes.xxl,
+    fontWeight: fontWeights.bold,
+    color: colors.textPrimary,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
+  subtitle: {
+    fontSize: fontSizes.sm,
+    color: colors.textSecondary,
+    marginTop: spacing.xxs,
+  },
+  iconButton: {
+    position: 'relative',
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badge: {
     position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.error,
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    fontSize: fontSizes.lg,
+    fontWeight: fontWeights.bold,
+    color: colors.white,
+  },
+  section: {
+    marginBottom: spacing.xxl,
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginHorizontal: -spacing.xs,
+  },
+  gridItem: {
+    width: '48%',
+    marginBottom: spacing.sm,
+    marginHorizontal: '1%',
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  outletPlaceholder: {
+    height: 200,
+  },
+  notifPlaceholder: {
+    height: 120,
   },
 });
