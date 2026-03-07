@@ -1,7 +1,8 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     KeyboardAvoidingView,
@@ -19,26 +20,13 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/context/auth-context';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 
-// Hardcoded: skip API and sign in with mock data so app goes directly inside
-const MOCK_LOGIN_RESPONSE = {
-  isSystemUser: 'Y',
-  responseCode: '00',
-  responseMessage: 'Login successful',
-  role: 'MERCHANT',
-  status: 'success',
-  token: 'mock-token',
-  userId: 1,
-  userStatus: 'ACTIVE',
-  username: 'Merchant',
-} as const;
+const SAVED_USERNAME_KEY = '@findit_saved_username';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { signIn } = useAuth();
-  const colorScheme = useColorScheme() ?? 'light';
-  const colors = Colors[colorScheme];
+  const { login } = useAuth();
+  const colors = Colors.light;
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -46,16 +34,34 @@ export default function LoginScreen() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    AsyncStorage.getItem(SAVED_USERNAME_KEY).then((saved) => {
+      if (saved?.trim()) setUsername(saved.trim());
+    });
+  }, []);
+
   const handleLogin = async () => {
     setError('');
+    if (!username.trim()) {
+      setError('Enter username');
+      return;
+    }
+    if (!password) {
+      setError('Enter password');
+      return;
+    }
     setLoading(true);
     try {
-      const displayName = username.trim() || MOCK_LOGIN_RESPONSE.username;
-      const data = { ...MOCK_LOGIN_RESPONSE, username: displayName };
-      await signIn(data);
+      await login(username.trim(), password);
+      await AsyncStorage.setItem(SAVED_USERNAME_KEY, username.trim());
       router.replace('/(tabs)');
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Login failed');
+    } catch (e: unknown) {
+      let msg = 'Login failed';
+      if (e && typeof e === 'object' && 'response' in e) {
+        const res = (e as { response?: { data?: { responseMessage?: string } } }).response;
+        if (res?.data?.responseMessage) msg = res.data.responseMessage;
+      } else if (e instanceof Error) msg = e.message;
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -118,15 +124,25 @@ export default function LoginScreen() {
               />
             </Pressable>
           </View>
-          <Pressable
-            style={styles.forgotLinkWrap}
-            onPress={() => router.push('/forgot-password')}
-            disabled={loading}
-          >
-            <ThemedText type="link" style={[styles.forgotLink, { color: colors.tint }]}>
-              Forgot password?
-            </ThemedText>
-          </Pressable>
+          <View style={styles.linksRow}>
+            <Pressable
+              style={styles.forgotLinkWrap}
+              onPress={() => router.push('/forgot-password')}
+              disabled={loading}
+            >
+              <ThemedText type="link" style={[styles.forgotLink, { color: colors.tint }]}>
+                Forgot password?
+              </ThemedText>
+            </Pressable>
+            <Pressable
+              onPress={() => router.push('/register')}
+              disabled={loading}
+            >
+              <ThemedText type="link" style={[styles.forgotLink, { color: colors.tint }]}>
+                Register
+              </ThemedText>
+            </Pressable>
+          </View>
 
           {error ? <ThemedText style={styles.error}>{error}</ThemedText> : null}
 
@@ -227,10 +243,13 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
   },
-  forgotLinkWrap: {
-    alignSelf: 'flex-end',
+  linksRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 8,
   },
+  forgotLinkWrap: {},
   forgotLink: {
     fontSize: 14,
   },

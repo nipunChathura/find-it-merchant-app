@@ -1,26 +1,20 @@
 /**
- * Modern Blue Theme — Safe & Professional
+ * Modern Blue Theme — Safe & Professional (Light only)
  * Best for: Business apps, Admin panels, Finance apps
  */
 
 import { Platform } from 'react-native';
 
-// Light theme
 const primary = '#2563EB';      // Blue 600
 const secondary = '#1E40AF';    // Blue 800
-const backgroundLight = '#F8FAFC';
-const textPrimaryLight = '#0F172A';
+const background = '#F8FAFC';
+const textPrimary = '#0F172A';
 const accent = '#38BDF8';       // Sky 400
-
-// Dark theme (derived)
-const backgroundDark = '#0F172A';
-const textPrimaryDark = '#F8FAFC';
-const iconDark = '#94A3B8';
 
 export const Colors = {
   light: {
-    text: textPrimaryLight,
-    background: backgroundLight,
+    text: textPrimary,
+    background,
     tint: primary,
     secondary,
     accent,
@@ -28,17 +22,6 @@ export const Colors = {
     tabIconDefault: '#64748B',
     tabIconSelected: primary,
     border: '#E2E8F0',
-  },
-  dark: {
-    text: textPrimaryDark,
-    background: backgroundDark,
-    tint: accent,
-    secondary: '#60A5FA',
-    accent,
-    icon: iconDark,
-    tabIconDefault: iconDark,
-    tabIconSelected: accent,
-    border: '#334155',
   },
 };
 

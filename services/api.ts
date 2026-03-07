@@ -16,6 +16,8 @@ async function request<T>(
     ...(init.headers ?? {}),
   };
 
+  console.log('[API Request]', init.method ?? 'GET', url, body ?? '');
+
   let res: Response;
   try {
     res = await fetch(url, {
@@ -40,7 +42,10 @@ async function request<T>(
     data = (await res.json().catch(() => ({}))) as T & { responseMessage?: string };
   }
 
-  if (!res.ok) {
+  if (res.ok) {
+    console.log('[API Response]', res.status, url, data);
+  } else {
+    console.log('[API Error]', res.status, url, data);
     throw new Error(
       (data.responseMessage as string) ?? `Request failed: ${res.status}`
     );
