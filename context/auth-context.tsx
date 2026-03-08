@@ -90,8 +90,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   /** Merchant app login - calls /api/merchant-app/login, stores token and user */
   const login = useCallback(async (username: string, password: string) => {
     const { data } = await authService.merchantLogin({ username, password });
-    if (data.status !== 'success') {
-      throw new Error(data.responseMessage ?? 'Login failed');
+    if (data.status !== 'success' && data.status !== 'SUCCESS') {
+      const msg =
+        (data as { responseMessage?: string }).responseMessage?.trim() ??
+        (data as { fieldErrors?: Array<{ message?: string }> }).fieldErrors?.[0]?.message?.trim() ??
+        'Login failed';
+      throw new Error(msg);
     }
     const role = (data.role === 'SUBMERCHANT' ? 'SUBMERCHANT' : 'MERCHANT') as UserRole;
     // Support both top-level and nested: MERCHANT → merchantId (5), SUBMERCHANT → subMerchantId (1)

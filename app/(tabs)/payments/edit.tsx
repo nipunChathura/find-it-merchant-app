@@ -356,14 +356,16 @@ export default function EditPaymentScreen() {
             loading={loading}
             disabled={loading}
           />
-          <Pressable
-            onPress={handleDelete}
-            disabled={loading}
-            style={[styles.deleteBtn, loading && styles.deleteBtnDisabled]}
-          >
-            <MaterialIcons name="delete-outline" size={22} color={colors.error} />
-            <Text style={styles.deleteBtnText}>Delete payment</Text>
-          </Pressable>
+          {role === 'MERCHANT' ? (
+            <Pressable
+              onPress={handleDelete}
+              disabled={loading}
+              style={[styles.deleteBtn, loading && styles.deleteBtnDisabled]}
+            >
+              <MaterialIcons name="delete-outline" size={22} color={colors.error} />
+              <Text style={styles.deleteBtnText}>Delete payment</Text>
+            </Pressable>
+          ) : null}
           <View style={{ height: spacing.xxl }} />
         </ScrollView>
       </KeyboardAvoidingView>

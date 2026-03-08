@@ -5,6 +5,7 @@ import { Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native
 
 import { EmptyState, ScreenContainer } from '@/components/dashboard';
 import { useDashboardData } from '@/hooks/useDashboardData';
+import { useRole } from '@/hooks/useRole';
 import { deletePayment } from '@/services/paymentService';
 import { colors } from '@/theme/colors';
 import { borderRadius, cardRadius, spacing } from '@/theme/spacing';
@@ -19,6 +20,7 @@ const headerShadow = Platform.select({
 /** Payments list from dashboard API */
 export default function PaymentsScreen() {
   const router = useRouter();
+  const role = useRole();
   const { payments = [], refresh } = useDashboardData();
 
   const sortedPayments = useMemo(() => {
@@ -71,33 +73,35 @@ export default function PaymentsScreen() {
                     <MaterialIcons name="edit" size={16} color={colors.primary} />
                     <Text style={styles.cardActionText}>Update</Text>
                   </Pressable>
-                  <Pressable
-                    onPress={() => {
-                      Alert.alert(
-                        'Delete payment',
-                        'Remove this payment?',
-                        [
-                          { text: 'Cancel', style: 'cancel' },
-                          {
-                            text: 'Delete',
-                            style: 'destructive',
-                            onPress: async () => {
-                              try {
-                                await deletePayment(p.paymentId);
-                                refresh();
-                              } catch {
-                                Alert.alert('Error', 'Failed to delete payment.');
-                              }
+                  {role === 'MERCHANT' ? (
+                    <Pressable
+                      onPress={() => {
+                        Alert.alert(
+                          'Delete payment',
+                          'Remove this payment?',
+                          [
+                            { text: 'Cancel', style: 'cancel' },
+                            {
+                              text: 'Delete',
+                              style: 'destructive',
+                              onPress: async () => {
+                                try {
+                                  await deletePayment(p.paymentId);
+                                  refresh();
+                                } catch {
+                                  Alert.alert('Error', 'Failed to delete payment.');
+                                }
+                              },
                             },
-                          },
-                        ]
-                      );
-                    }}
-                    style={({ pressed }) => [styles.cardActionBtn, styles.cardActionBtnDanger, pressed && styles.cardActionBtnPressed]}
-                  >
-                    <MaterialIcons name="delete-outline" size={16} color={colors.error} />
-                    <Text style={[styles.cardActionText, styles.cardActionTextDanger]}>Delete</Text>
-                  </Pressable>
+                          ]
+                        );
+                      }}
+                      style={({ pressed }) => [styles.cardActionBtn, styles.cardActionBtnDanger, pressed && styles.cardActionBtnPressed]}
+                    >
+                      <MaterialIcons name="delete-outline" size={16} color={colors.error} />
+                      <Text style={[styles.cardActionText, styles.cardActionTextDanger]}>Delete</Text>
+                    </Pressable>
+                  ) : null}
                 </View>
               ) : null}
             </View>

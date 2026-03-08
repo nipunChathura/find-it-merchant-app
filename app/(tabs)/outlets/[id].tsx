@@ -576,7 +576,7 @@ export default function OutletDetailScreen() {
                   </Pressable>
                 </View>
               ) : null}
-              {role === 'MERCHANT' && outlet.status === 'PENDING' ? (
+              {outlet.status === 'PENDING' && role === 'MERCHANT' ? (
                 <View style={styles.pendingActionsRow}>
                   <Pressable style={styles.approveBtn} onPress={handleApproveOutlet}>
                     <MaterialIcons name="check-circle" size={18} color={colors.white} />
@@ -586,6 +586,10 @@ export default function OutletDetailScreen() {
                     <MaterialIcons name="cancel" size={18} color={colors.white} />
                     <Text style={styles.rejectBtnText}>Reject</Text>
                   </Pressable>
+                </View>
+              ) : outlet.status === 'PENDING' && role === 'SUBMERCHANT' ? (
+                <View style={styles.pendingNoteRow}>
+                  <Text style={styles.pendingNoteText}>Approve and Reject are only available to the main merchant.</Text>
                 </View>
               ) : null}
             </View>
@@ -1183,33 +1187,35 @@ export default function OutletDetailScreen() {
                         <MaterialIcons name="edit" size={18} color={colors.primary} />
                         <Text style={styles.paymentActionText}>Update</Text>
                       </Pressable>
-                      <Pressable
-                        onPress={() => {
-                          Alert.alert(
-                            'Delete payment',
-                            'Remove this payment?',
-                            [
-                              { text: 'Cancel', style: 'cancel' },
-                              {
-                                text: 'Delete',
-                                style: 'destructive',
-                                onPress: async () => {
-                                  try {
-                                    await deletePayment(p.paymentId);
-                                    loadOutletPayments();
-                                  } catch {
-                                    Alert.alert('Error', 'Failed to delete payment.');
-                                  }
+                      {role === 'MERCHANT' ? (
+                        <Pressable
+                          onPress={() => {
+                            Alert.alert(
+                              'Delete payment',
+                              'Remove this payment?',
+                              [
+                                { text: 'Cancel', style: 'cancel' },
+                                {
+                                  text: 'Delete',
+                                  style: 'destructive',
+                                  onPress: async () => {
+                                    try {
+                                      await deletePayment(p.paymentId);
+                                      loadOutletPayments();
+                                    } catch {
+                                      Alert.alert('Error', 'Failed to delete payment.');
+                                    }
+                                  },
                                 },
-                              },
-                            ]
-                          );
-                        }}
-                        style={({ pressed }) => [styles.paymentActionBtn, styles.paymentActionBtnDanger, pressed && styles.paymentActionBtnPressed]}
-                      >
-                        <MaterialIcons name="delete-outline" size={18} color={colors.error} />
-                        <Text style={[styles.paymentActionText, styles.paymentActionTextDanger]}>Delete</Text>
-                      </Pressable>
+                              ]
+                            );
+                          }}
+                          style={({ pressed }) => [styles.paymentActionBtn, styles.paymentActionBtnDanger, pressed && styles.paymentActionBtnPressed]}
+                        >
+                          <MaterialIcons name="delete-outline" size={18} color={colors.error} />
+                          <Text style={[styles.paymentActionText, styles.paymentActionTextDanger]}>Delete</Text>
+                        </Pressable>
+                      ) : null}
                     </View>
                   ) : null}
                 </View>
@@ -1518,6 +1524,17 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.sm,
     fontWeight: fontWeights.semibold,
     color: colors.white,
+  },
+  pendingNoteRow: {
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  pendingNoteText: {
+    fontSize: fontSizes.sm,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
   },
   card: {
     flexDirection: 'row',

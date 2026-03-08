@@ -23,6 +23,20 @@ import { useAuth } from '@/context/auth-context';
 
 const SAVED_USERNAME_KEY = '@findit_saved_username';
 
+/** API error shape: { status, responseCode, responseMessage, fieldErrors?: [{ message }] } */
+function getLoginErrorMessage(e: unknown): string {
+  const fallback = 'Login failed';
+  if (e && typeof e === 'object' && 'response' in e) {
+    const data = (e as { response?: { data?: { responseMessage?: string; fieldErrors?: Array<{ message?: string }> } } })
+      .response?.data;
+    if (data?.responseMessage?.trim()) return data.responseMessage.trim();
+    const firstField = data?.fieldErrors?.[0];
+    if (firstField?.message?.trim()) return firstField.message.trim();
+  }
+  if (e instanceof Error && e.message?.trim()) return e.message.trim();
+  return fallback;
+}
+
 export default function LoginScreen() {
   const router = useRouter();
   const { login } = useAuth();
@@ -56,11 +70,7 @@ export default function LoginScreen() {
       await AsyncStorage.setItem(SAVED_USERNAME_KEY, username.trim());
       router.replace('/(tabs)');
     } catch (e: unknown) {
-      let msg = 'Login failed';
-      if (e && typeof e === 'object' && 'response' in e) {
-        const res = (e as { response?: { data?: { responseMessage?: string } } }).response;
-        if (res?.data?.responseMessage) msg = res.data.responseMessage;
-      } else if (e instanceof Error) msg = e.message;
+      const msg = getLoginErrorMessage(e);
       setError(msg);
     } finally {
       setLoading(false);

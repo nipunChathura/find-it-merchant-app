@@ -11,8 +11,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { PrimaryButton } from '@/components/ui/PrimaryButton';
-import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { AuthImage } from '@/components/ui/AuthImage';
 import { useAuth } from '@/context/auth-context';
 import { useDashboardData } from '@/hooks/useDashboardData';
@@ -280,22 +278,23 @@ export default function SubMerchantDetailsScreen() {
                 <MaterialIcons name="chevron-right" size={20} color={colors.textSecondary} />
               </Pressable>
               {isPending ? (
-                <View style={styles.pendingActions}>
-                  <View style={styles.pendingActionBtn}>
-                    <PrimaryButton
-                      title={actionLoading ? 'Approving…' : 'Approve'}
-                      onPress={handleApprove}
-                      loading={actionLoading}
-                      disabled={actionLoading}
-                    />
-                  </View>
-                  <View style={styles.pendingActionBtn}>
-                    <SecondaryButton
-                      title="Reject"
-                      onPress={handleReject}
-                      disabled={actionLoading}
-                    />
-                  </View>
+                <View style={styles.pendingActionsRow}>
+                  <Pressable
+                    style={[styles.approveBtn, actionLoading && styles.actionBtnDisabled]}
+                    onPress={handleApprove}
+                    disabled={actionLoading}
+                  >
+                    <MaterialIcons name="check-circle" size={18} color={colors.white} />
+                    <Text style={styles.approveBtnText}>{actionLoading ? 'Approving…' : 'Approve'}</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.rejectBtn, actionLoading && styles.actionBtnDisabled]}
+                    onPress={handleReject}
+                    disabled={actionLoading}
+                  >
+                    <MaterialIcons name="cancel" size={18} color={colors.white} />
+                    <Text style={styles.rejectBtnText}>Reject</Text>
+                  </Pressable>
                 </View>
               ) : null}
               <View style={styles.deleteWrap}>
@@ -484,13 +483,45 @@ const styles = StyleSheet.create({
     fontWeight: fontWeights.medium,
     color: colors.textPrimary,
   },
-  pendingActions: {
+  pendingActionsRow: {
     flexDirection: 'row',
-    gap: spacing.md,
+    alignItems: 'center',
+    gap: spacing.sm,
     marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
-  pendingActionBtn: {
-    flex: 1,
+  approveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.sm,
+    backgroundColor: colors.success,
+  },
+  approveBtnText: {
+    fontSize: fontSizes.sm,
+    fontWeight: fontWeights.semibold,
+    color: colors.white,
+  },
+  rejectBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.sm,
+    backgroundColor: colors.error,
+  },
+  rejectBtnText: {
+    fontSize: fontSizes.sm,
+    fontWeight: fontWeights.semibold,
+    color: colors.white,
+  },
+  actionBtnDisabled: {
+    opacity: 0.6,
   },
   deleteWrap: {
     marginTop: spacing.lg,
