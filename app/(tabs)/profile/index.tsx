@@ -5,6 +5,7 @@ import React from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ScreenContainer } from '@/components/dashboard';
+import { AuthImage } from '@/components/ui/AuthImage';
 import { useAuth } from '@/context/auth-context';
 import { colors } from '@/theme/colors';
 import { cardRadius, spacing } from '@/theme/spacing';
@@ -31,7 +32,7 @@ function InfoRow({ icon, label, value }: { icon: 'person' | 'email' | 'phone' | 
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, signOut } = useAuth();
+  const { user, token, signOut } = useAuth();
 
   const merchant = user?.role === 'SUBMERCHANT' ? user.subMerchantInfo : user?.mainMerchantInfo;
   const displayName = merchant?.merchantName ?? user?.username ?? 'Merchant';
@@ -49,7 +50,22 @@ export default function ProfileScreen() {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.profileHeader}>
           <View style={styles.avatarWrap}>
-            {user?.profileImageUri ? (
+            {user?.profileImage && token ? (
+              <AuthImage
+                type="profile"
+                fileName={user.profileImage}
+                token={token}
+                style={styles.avatarImage}
+                resizeMode="cover"
+                placeholder={
+                  <View style={styles.avatar}>
+                    <Text style={styles.avatarText}>
+                      {displayName?.charAt(0).toUpperCase() ?? 'M'}
+                    </Text>
+                  </View>
+                }
+              />
+            ) : user?.profileImageUri ? (
               <Image source={{ uri: user.profileImageUri }} style={styles.avatarImage} contentFit="cover" />
             ) : (
               <View style={styles.avatar}>

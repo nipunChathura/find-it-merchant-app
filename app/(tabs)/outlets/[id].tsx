@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
     Alert,
@@ -14,9 +14,16 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ScreenContainer, SectionHeader } from '@/components/dashboard';
+import { AppInput } from '@/components/ui/AppInput';
+import { AuthImage } from '@/components/ui/AuthImage';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import type { DropdownOption } from '@/components/ui/SearchableDropdown';
+import { SearchableDropdown } from '@/components/ui/SearchableDropdown';
 import { useAuth } from '@/context/auth-context';
 import { useRole } from '@/hooks/useRole';
+import { CATEGORY_PAGE_SIZE, categoryToOption, fetchCategories } from '@/services/categoryService';
+import { fetchOutletDiscountDetails, type OutletDiscountDetail } from '@/services/discountService';
+import { deleteItemById, fetchItems, ITEMS_PAGE_SIZE, type ItemApiDto } from '@/services/itemService';
 import {
     approveOutletApi,
     detailsOutletToOutlet,
@@ -26,6 +33,18 @@ import {
     setOutletStatusApi,
     type OutletDetailsResponse,
 } from '@/services/outletService';
+import {
+    deletePayment,
+    fetchOutletPaymentDetails,
+    type OutletPaymentDetail,
+} from '@/services/paymentService';
+import {
+    deleteScheduleSlot,
+    fetchOutletScheduleDetails,
+    type NormalScheduleSlot,
+    type OutletScheduleDetailsResponse,
+    type SpecialScheduleSlot,
+} from '@/services/scheduleService';
 import type { OutletRecord } from '@/src/context/OutletContext';
 import { useOutletContext } from '@/src/context/OutletContext';
 import { colors } from '@/theme/colors';
@@ -60,24 +79,32 @@ export default function OutletDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const role = useRole();
-  const { user } = useAuth();
-  const {
-    getOutletById,
-    getItemsByOutletId,
-    getSchedulesByOutletId,
-    getPaymentsByOutletId,
-  } = useOutletContext();
+  const { user, token } = useAuth();
+  const { getOutletById } = useOutletContext();
 
   const [outlet, setOutlet] = useState<Outlet | null>(null);
   const [outletDetails, setOutletDetails] = useState<OutletDetailsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabId>('info');
+  const [outletPayments, setOutletPayments] = useState<OutletPaymentDetail[]>([]);
+  const [paymentsLoading, setPaymentsLoading] = useState(false);
+  const [outletDiscounts, setOutletDiscounts] = useState<OutletDiscountDetail[]>([]);
+  const [discountsLoading, setDiscountsLoading] = useState(false);
+  const [outletSchedule, setOutletSchedule] = useState<OutletScheduleDetailsResponse | null>(null);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [scheduleSubTab, setScheduleSubTab] = useState<'regular' | 'special' | 'temporary'>('regular');
+  const [outletItems, setOutletItems] = useState<ItemApiDto[]>([]);
+  const [itemsLoading, setItemsLoading] = useState(false);
+  const [itemsLoadingMore, setItemsLoadingMore] = useState(false);
+  const [itemPage, setItemPage] = useState(0);
+  const [itemsHasMore, setItemsHasMore] = useState(true);
+  const [itemSearch, setItemSearch] = useState('');
+  const [itemCategoryId, setItemCategoryId] = useState<string>('');
+  const [categoryOptions, setCategoryOptions] = useState<DropdownOption[]>([]);
+  const [itemActionLoading, setItemActionLoading] = useState<number | null>(null);
 
   const insets = useSafeAreaInsets();
   const contextOutlet = id ? getOutletById(id) : undefined;
-  const items = id ? getItemsByOutletId(id) : [];
-  const schedules = id ? getSchedulesByOutletId(id) : [];
-  const payments = id ? getPaymentsByOutletId(id) : [];
 
   useEffect(() => {
     if (id != null && INVALID_OUTLET_IDS.includes(String(id).toLowerCase())) {
@@ -140,6 +167,208 @@ export default function OutletDetailScreen() {
   useEffect(() => {
     loadOutlet();
   }, [loadOutlet]);
+
+  const loadOutletPayments = useCallback(async () => {
+    if (!id || activeTab !== 'payments' || INVALID_OUTLET_IDS.includes(String(id).toLowerCase())) return;
+    setPaymentsLoading(true);
+    try {
+      const list = await fetchOutletPaymentDetails(id);
+      setOutletPayments(list);
+    } catch {
+      setOutletPayments([]);
+    } finally {
+      setPaymentsLoading(false);
+    }
+  }, [id, activeTab]);
+
+  useEffect(() => {
+    loadOutletPayments();
+  }, [loadOutletPayments]);
+
+  const loadOutletDiscounts = useCallback(async () => {
+    if (!id || activeTab !== 'discount' || INVALID_OUTLET_IDS.includes(String(id).toLowerCase())) return;
+    setDiscountsLoading(true);
+    try {
+      const list = await fetchOutletDiscountDetails(id);
+      setOutletDiscounts(list);
+    } catch {
+      setOutletDiscounts([]);
+    } finally {
+      setDiscountsLoading(false);
+    }
+  }, [id, activeTab]);
+
+  useEffect(() => {
+    loadOutletDiscounts();
+  }, [loadOutletDiscounts]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (id && activeTab === 'discount') loadOutletDiscounts();
+    }, [id, activeTab, loadOutletDiscounts])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (id && activeTab === 'payments') loadOutletPayments();
+    }, [id, activeTab, loadOutletPayments])
+  );
+
+  const loadOutletSchedules = useCallback(async () => {
+    if (!id || activeTab !== 'schedule' || INVALID_OUTLET_IDS.includes(String(id).toLowerCase())) return;
+    setScheduleLoading(true);
+    try {
+      const data = await fetchOutletScheduleDetails(id);
+      setOutletSchedule(data);
+    } catch {
+      setOutletSchedule(null);
+    } finally {
+      setScheduleLoading(false);
+    }
+  }, [id, activeTab]);
+
+  useEffect(() => {
+    loadOutletSchedules();
+  }, [loadOutletSchedules]);
+
+  const handleDeleteSchedule = useCallback(
+    (scheduleId: number, label: string) => {
+      if (!id) return;
+      Alert.alert(
+        'Delete schedule',
+        `Remove this schedule (${label})?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await deleteScheduleSlot(id, scheduleId);
+                await loadOutletSchedules();
+              } catch {
+                Alert.alert('Error', 'Failed to delete schedule.');
+              }
+            },
+          },
+        ]
+      );
+    },
+    [id, loadOutletSchedules]
+  );
+
+  const loadCategoryOptions = useCallback(async () => {
+    try {
+      const list = await fetchCategories({
+        name: '',
+        categoryType: '',
+        status: '',
+        page: 0,
+        size: CATEGORY_PAGE_SIZE,
+      });
+      const opts = list.map(categoryToOption).filter((o) => o.id !== 0);
+      opts.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+      setCategoryOptions(opts);
+    } catch {
+      setCategoryOptions([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'items' && id) loadCategoryOptions();
+  }, [activeTab, id, loadCategoryOptions]);
+
+  const loadOutletItems = useCallback(async () => {
+    if (!id || activeTab !== 'items' || INVALID_OUTLET_IDS.includes(String(id).toLowerCase())) return;
+    setItemsLoading(true);
+    const search = itemSearch.trim();
+    const categoryId = itemCategoryId.trim() ? itemCategoryId : undefined;
+    try {
+      const list = await fetchItems({
+        outletId: id,
+        search: search || undefined,
+        categoryId,
+        page: 0,
+        size: ITEMS_PAGE_SIZE,
+      });
+      const firstPage = Array.isArray(list) ? list.slice(0, ITEMS_PAGE_SIZE) : [];
+      setOutletItems(firstPage);
+      setItemPage(1);
+      setItemsHasMore(list.length >= ITEMS_PAGE_SIZE);
+    } catch {
+      setOutletItems([]);
+      setItemsHasMore(false);
+    } finally {
+      setItemsLoading(false);
+    }
+  }, [id, activeTab, itemSearch, itemCategoryId]);
+
+  const loadMoreItems = useCallback(async () => {
+    if (!id || activeTab !== 'items' || !itemsHasMore || itemsLoadingMore) return;
+    setItemsLoadingMore(true);
+    const search = itemSearch.trim();
+    const categoryId = itemCategoryId.trim() ? itemCategoryId : undefined;
+    try {
+      const list = await fetchItems({
+        outletId: id,
+        search: search || undefined,
+        categoryId,
+        page: itemPage,
+        size: ITEMS_PAGE_SIZE,
+      });
+      const nextBundle = Array.isArray(list) ? list.slice(0, ITEMS_PAGE_SIZE) : [];
+      setOutletItems((prev) => [...prev, ...nextBundle]);
+      setItemPage((p) => p + 1);
+      setItemsHasMore(list.length >= ITEMS_PAGE_SIZE);
+    } catch {
+      setItemsHasMore(false);
+    } finally {
+      setItemsLoadingMore(false);
+    }
+  }, [id, activeTab, itemSearch, itemCategoryId, itemPage, itemsHasMore, itemsLoadingMore]);
+
+  const handleItemsScroll = useCallback(
+    (e: { nativeEvent: { contentOffset: { y: number }; contentSize: { height: number }; layoutMeasurement: { height: number } } }) => {
+      if (activeTab !== 'items' || !itemsHasMore || itemsLoadingMore) return;
+      const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+      const nearBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - 80;
+      if (nearBottom) loadMoreItems();
+    },
+    [activeTab, itemsHasMore, itemsLoadingMore, loadMoreItems]
+  );
+
+  useEffect(() => {
+    loadOutletItems();
+  }, [loadOutletItems]);
+
+  const handleDeleteItem = useCallback(
+    (item: ItemApiDto) => {
+      if (!id) return;
+      Alert.alert(
+        'Delete item',
+        `Remove "${item.itemName}"?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              setItemActionLoading(item.itemId);
+              try {
+                await deleteItemById(item.itemId);
+                await loadOutletItems();
+              } catch {
+                Alert.alert('Error', 'Failed to delete item.');
+              } finally {
+                setItemActionLoading(null);
+              }
+            },
+          },
+        ]
+      );
+    },
+    [id, loadOutletItems]
+  );
 
   const handleDeleteOutlet = () => {
     if (!id || role !== 'MERCHANT') return;
@@ -317,6 +546,8 @@ export default function OutletDetailScreen() {
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        onScroll={handleItemsScroll}
+        scrollEventThrottle={200}
       >
         {activeTab === 'info' && (
           <View style={styles.infoBlock}>
@@ -579,29 +810,129 @@ export default function OutletDetailScreen() {
                 router.push({ pathname: '/(tabs)/outlets/items/add', params: { outletId: id } })
               }
             />
-            {items.length === 0 ? (
-              <Text style={styles.empty}>No items. Add items for this outlet.</Text>
+            <View style={styles.itemFiltersRow}>
+              <AppInput
+                placeholder="Search by item name"
+                value={itemSearch}
+                onChangeText={setItemSearch}
+                style={styles.itemSearchInput}
+              />
+              <Text style={styles.itemFilterLabel}>Category</Text>
+              <SearchableDropdown
+                options={[{ id: 0, name: 'All categories' }, ...categoryOptions]}
+                selected={
+                  !itemCategoryId
+                    ? { id: 0, name: 'All categories' }
+                    : categoryOptions.find((c) => String(c.id) === itemCategoryId) ?? { id: 0, name: 'All categories' }
+                }
+                onSelect={(opt) => setItemCategoryId(opt.id === 0 ? '' : String(opt.id))}
+                placeholder="Category"
+                searchPlaceholder="Search category"
+                disabled={itemsLoading}
+              />
+            </View>
+            {itemsLoading ? (
+              <View style={styles.paymentsLoadingWrap}>
+                <LoadingSpinner />
+              </View>
+            ) : outletItems.length === 0 ? (
+              <Text style={styles.empty}>No items for this outlet.</Text>
             ) : (
-              items.map((item, idx) => (
-                <Pressable
-                  key={item?.id ?? `item-${idx}`}
-                  style={styles.card}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/(tabs)/outlets/items/edit',
-                      params: { id: item.id, outletId: id },
-                    })
-                  }
-                >
-                  <Text style={styles.cardTitle}>{item.name}</Text>
-                  <Text style={styles.cardSub}>
-                    LKR {item.price} · {item.category || 'Uncategorized'}
-                  </Text>
-                  <Text style={styles.cardStatus}>
-                    {item.availability ? 'Available' : 'Unavailable'}
-                  </Text>
+              <>
+              {outletItems.map((item, itemIndex) => {
+                const busy = itemActionLoading === item.itemId;
+                return (
+                  <View key={`item-${item.itemId}-${itemIndex}`} style={styles.itemCard}>
+                    <Pressable
+                      style={styles.itemCardMain}
+                      onPress={() =>
+                        router.push({
+                          pathname: '/(tabs)/outlets/items/details',
+                          params: {
+                            itemId: String(item.itemId),
+                            outletId: id,
+                            itemData: JSON.stringify(item),
+                          },
+                        })
+                      }
+                      disabled={busy}
+                    >
+                      {item.itemImage && token ? (
+                        <View style={styles.itemImageWrap}>
+                          <AuthImage
+                            type="item"
+                            fileName={item.itemImage}
+                            token={token}
+                            style={styles.itemThumb}
+                            resizeMode="cover"
+                            placeholder={
+                              <View style={[styles.itemImageWrap, styles.itemImagePlaceholder]}>
+                                <MaterialIcons name="restaurant" size={32} color={colors.textSecondary} />
+                              </View>
+                            }
+                          />
+                        </View>
+                      ) : (
+                        <View style={[styles.itemImageWrap, styles.itemImagePlaceholder]}>
+                          <MaterialIcons name="restaurant" size={32} color={colors.textSecondary} />
+                        </View>
+                      )}
+                      <View style={styles.itemCardBody}>
+                        <Text style={styles.cardTitle}>{item.itemName}</Text>
+                        <Text style={styles.cardSub}>
+                          LKR {Number(item.price).toLocaleString()} · {item.categoryName ?? 'Uncategorized'}
+                        </Text>
+                        <Text style={styles.cardStatus}>
+                          {item.availability ? 'Available' : 'Unavailable'}
+                          {item.discountAvailability ? (
+                            <Text style={styles.cardStatusDiscount}> · On discount</Text>
+                          ) : null}
+                        </Text>
+                      </View>
+                      <MaterialIcons name="chevron-right" size={24} color={colors.textSecondary} />
+                    </Pressable>
+                    <View style={styles.itemActionsRow}>
+                      <Pressable
+                        style={[styles.itemActionBtn, styles.itemActionEdit]}
+                        onPress={() =>
+                          router.push({
+                            pathname: '/(tabs)/outlets/items/edit',
+                            params: {
+                              id: String(item.itemId),
+                              outletId: id,
+                              itemData: JSON.stringify(item),
+                            },
+                          })
+                        }
+                        disabled={busy}
+                      >
+                        <MaterialIcons name="edit" size={16} color={colors.primary} />
+                        <Text style={[styles.itemActionText, styles.itemActionTextEdit]}>Update</Text>
+                      </Pressable>
+                      <Pressable
+                        style={[styles.itemActionBtn, styles.itemActionDelete]}
+                        onPress={() => handleDeleteItem(item)}
+                        disabled={busy}
+                      >
+                        <MaterialIcons name="delete-outline" size={16} color={colors.error} />
+                        <Text style={[styles.itemActionText, styles.itemActionTextDelete]}>Delete</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                );
+              })}
+              {itemsLoadingMore && (
+                <View style={styles.itemsLoadingMoreWrap}>
+                  <LoadingSpinner />
+                </View>
+              )}
+              {itemsHasMore && !itemsLoadingMore && (
+                <Pressable style={styles.loadMoreItemsBtn} onPress={loadMoreItems}>
+                  <Text style={styles.loadMoreItemsBtnText}>Load next 5 items</Text>
+                  <MaterialIcons name="expand-more" size={20} color={colors.primary} />
                 </Pressable>
-              ))
+              )}
+              </>
             )}
           </View>
         )}
@@ -618,26 +949,175 @@ export default function OutletDetailScreen() {
                 })
               }
             />
-            {schedules.length === 0 ? (
-              <Text style={styles.empty}>No schedule. Add opening hours.</Text>
+            {scheduleLoading ? (
+              <View style={styles.paymentsLoadingWrap}>
+                <LoadingSpinner />
+              </View>
             ) : (
-              schedules.map((s, idx) => (
-                <Pressable
-                  key={s?.id ?? `sched-${idx}`}
-                  style={styles.card}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/(tabs)/outlets/schedule/edit',
-                      params: { id: s.id, outletId: id },
-                    })
-                  }
-                >
-                  <Text style={styles.cardTitle}>{s.dayOfWeek}</Text>
-                  <Text style={styles.cardSub}>
-                    {s.openTime} – {s.closeTime}
-                  </Text>
-                </Pressable>
-              ))
+              <>
+                <View style={styles.scheduleSubTabs}>
+                  <Pressable
+                    style={[styles.scheduleSubTab, scheduleSubTab === 'regular' && styles.scheduleSubTabActive]}
+                    onPress={() => setScheduleSubTab('regular')}
+                  >
+                    <Text style={[styles.scheduleSubTabText, scheduleSubTab === 'regular' && styles.scheduleSubTabTextActive]}>
+                      Regular
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.scheduleSubTab, scheduleSubTab === 'special' && styles.scheduleSubTabActive]}
+                    onPress={() => setScheduleSubTab('special')}
+                  >
+                    <Text style={[styles.scheduleSubTabText, scheduleSubTab === 'special' && styles.scheduleSubTabTextActive]}>
+                      Special
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.scheduleSubTab, scheduleSubTab === 'temporary' && styles.scheduleSubTabActive]}
+                    onPress={() => setScheduleSubTab('temporary')}
+                  >
+                    <Text style={[styles.scheduleSubTabText, scheduleSubTab === 'temporary' && styles.scheduleSubTabTextActive]}>
+                      Temporary
+                    </Text>
+                  </Pressable>
+                </View>
+                {scheduleSubTab === 'regular' && (
+                  <View style={styles.scheduleList}>
+                    {(outletSchedule?.NORMAL ?? []).length === 0 ? (
+                      <Text style={styles.empty}>No regular weekly schedule.</Text>
+                    ) : (
+                      (outletSchedule?.NORMAL ?? []).map((s: NormalScheduleSlot) => (
+                        <View key={s.id} style={styles.card}>
+                          <View style={styles.paymentCardRow}>
+                            <Text style={styles.cardTitle}>{s.dayOfWeek}</Text>
+                            <View style={[styles.scheduleClosedBadge, s.isClosed === 'Y' && styles.scheduleClosedBadgeClosed]}>
+                              <Text style={[styles.scheduleClosedBadgeText, s.isClosed === 'Y' && styles.scheduleClosedBadgeTextClosed]}>
+                                {s.isClosed === 'Y' ? 'Closed' : 'Open'}
+                              </Text>
+                            </View>
+                          </View>
+                          <Text style={styles.cardSub}>
+                            {s.isClosed === 'Y' ? '—' : `${s.openTime} – ${s.closeTime}`}
+                          </Text>
+                          <View style={styles.scheduleActionsRow}>
+                            <Pressable
+                              style={styles.scheduleActionBtn}
+                              onPress={() => router.push({ pathname: '/(tabs)/outlets/schedule/edit', params: { id: String(s.id), outletId: id } })}
+                            >
+                              <MaterialIcons name="edit" size={18} color={colors.primary} />
+                              <Text style={styles.scheduleActionText}>Edit</Text>
+                            </Pressable>
+                            <Pressable
+                              style={[styles.scheduleActionBtn, styles.scheduleActionBtnDanger]}
+                              onPress={() => handleDeleteSchedule(s.id, s.dayOfWeek)}
+                            >
+                              <MaterialIcons name="delete-outline" size={18} color={colors.error} />
+                              <Text style={[styles.scheduleActionText, styles.scheduleActionTextDanger]}>Delete</Text>
+                            </Pressable>
+                          </View>
+                        </View>
+                      ))
+                    )}
+                  </View>
+                )}
+                {scheduleSubTab === 'special' && (() => {
+                  const daily = (outletSchedule?.DAILY ?? []).map((s) => ({ ...s, typeLabel: 'DAILY' as const }));
+                  const emergency = (outletSchedule?.EMERGENCY ?? []).map((s) => ({ ...s, typeLabel: 'EMERGENCY' as const }));
+                  const specialSlots = [...daily, ...emergency].sort((a, b) => (a.specialDate ?? '').localeCompare(b.specialDate ?? ''));
+                  return (
+                    <View style={styles.scheduleList}>
+                      {specialSlots.length === 0 ? (
+                        <Text style={styles.empty}>No special or emergency schedule.</Text>
+                      ) : (
+                        specialSlots.map((s, idx) => (
+                          <View key={`special-${s.typeLabel}-${s.id}-${idx}`} style={styles.card}>
+                            <View style={styles.paymentCardRow}>
+                              <Text style={styles.cardTitle}>{s.specialDate ?? '—'}</Text>
+                              <View style={styles.scheduleBadgeRow}>
+                                <View style={[styles.scheduleClosedBadge, s.isClosed === 'Y' && styles.scheduleClosedBadgeClosed]}>
+                                  <Text style={[styles.scheduleClosedBadgeText, s.isClosed === 'Y' && styles.scheduleClosedBadgeTextClosed]}>
+                                    {s.isClosed === 'Y' ? 'Closed' : 'Open'}
+                                  </Text>
+                                </View>
+                                <Text style={styles.scheduleTypeBadge}>{s.typeLabel}</Text>
+                              </View>
+                            </View>
+                            <Text style={styles.cardSub}>
+                              {s.isClosed === 'Y' ? '—' : `${s.openTime} – ${s.closeTime}`}
+                            </Text>
+                            {s.reason ? (
+                              <Text style={styles.cardDate}>{s.reason}</Text>
+                            ) : null}
+                            <View style={styles.scheduleActionsRow}>
+                              <Pressable
+                                style={styles.scheduleActionBtn}
+                                onPress={() => router.push({ pathname: '/(tabs)/outlets/schedule/edit', params: { id: String(s.id), outletId: id } })}
+                              >
+                                <MaterialIcons name="edit" size={18} color={colors.primary} />
+                                <Text style={styles.scheduleActionText}>Edit</Text>
+                              </Pressable>
+                              <Pressable
+                                style={[styles.scheduleActionBtn, styles.scheduleActionBtnDanger]}
+                                onPress={() => handleDeleteSchedule(s.id, s.specialDate ?? s.typeLabel)}
+                              >
+                                <MaterialIcons name="delete-outline" size={18} color={colors.error} />
+                                <Text style={[styles.scheduleActionText, styles.scheduleActionTextDanger]}>Delete</Text>
+                              </Pressable>
+                            </View>
+                          </View>
+                        ))
+                      )}
+                    </View>
+                  );
+                })()}
+                {scheduleSubTab === 'temporary' && (
+                  <View style={styles.scheduleList}>
+                    {(outletSchedule?.TEMPORARY ?? []).length === 0 ? (
+                      <Text style={styles.empty}>No temporary schedule.</Text>
+                    ) : (
+                      (outletSchedule?.TEMPORARY ?? [])
+                        .sort((a, b) => (a.specialDate ?? '').localeCompare(b.specialDate ?? ''))
+                        .map((s: SpecialScheduleSlot, idx) => (
+                          <View key={`temp-${s.id}-${idx}`} style={styles.card}>
+                            <View style={styles.paymentCardRow}>
+                              <Text style={styles.cardTitle}>{s.specialDate ?? '—'}</Text>
+                              <View style={styles.scheduleBadgeRow}>
+                                <View style={[styles.scheduleClosedBadge, s.isClosed === 'Y' && styles.scheduleClosedBadgeClosed]}>
+                                  <Text style={[styles.scheduleClosedBadgeText, s.isClosed === 'Y' && styles.scheduleClosedBadgeTextClosed]}>
+                                    {s.isClosed === 'Y' ? 'Closed' : 'Open'}
+                                  </Text>
+                                </View>
+                                <Text style={styles.scheduleTypeBadge}>TEMPORARY</Text>
+                              </View>
+                            </View>
+                            <Text style={styles.cardSub}>
+                              {s.isClosed === 'Y' ? '—' : `${s.openTime} – ${s.closeTime}`}
+                            </Text>
+                            {s.reason ? (
+                              <Text style={styles.cardDate}>{s.reason}</Text>
+                            ) : null}
+                            <View style={styles.scheduleActionsRow}>
+                              <Pressable
+                                style={styles.scheduleActionBtn}
+                                onPress={() => router.push({ pathname: '/(tabs)/outlets/schedule/edit', params: { id: String(s.id), outletId: id } })}
+                              >
+                                <MaterialIcons name="edit" size={18} color={colors.primary} />
+                                <Text style={styles.scheduleActionText}>Edit</Text>
+                              </Pressable>
+                              <Pressable
+                                style={[styles.scheduleActionBtn, styles.scheduleActionBtnDanger]}
+                                onPress={() => handleDeleteSchedule(s.id, s.specialDate ?? 'Temporary')}
+                              >
+                                <MaterialIcons name="delete-outline" size={18} color={colors.error} />
+                                <Text style={[styles.scheduleActionText, styles.scheduleActionTextDanger]}>Delete</Text>
+                              </Pressable>
+                            </View>
+                          </View>
+                        ))
+                    )}
+                  </View>
+                )}
+              </>
             )}
           </View>
         )}
@@ -654,16 +1134,84 @@ export default function OutletDetailScreen() {
                 })
               }
             />
-            {payments.length === 0 ? (
+            {paymentsLoading ? (
+              <View style={styles.paymentsLoadingWrap}>
+                <LoadingSpinner />
+              </View>
+            ) : outletPayments.length === 0 ? (
               <Text style={styles.empty}>No payments recorded.</Text>
             ) : (
-              payments.map((p, idx) => (
-                <View key={p?.id ?? `pay-${idx}`} style={styles.card}>
-                  <Text style={styles.cardTitle}>{p.month}</Text>
-                  <Text style={styles.cardSub}>LKR {p.paymentAmount}</Text>
+              outletPayments.map((p, idx) => (
+                <View key={`pay-${p.paymentId}-${idx}`} style={styles.paymentCardDetail}>
+                  <View style={styles.paymentCardRow}>
+                    <Text style={styles.cardTitle}>{p.outletName ?? `Payment #${p.paymentId}`}</Text>
+                    <View style={[styles.paymentStatusBadge, p.paymentStatus === 'PAID' && styles.paymentStatusPaid]}>
+                      <Text style={styles.paymentStatusText}>{p.paymentStatus}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.cardSub}>LKR {Number(p.amount).toLocaleString()}</Text>
                   <Text style={styles.cardDate}>
-                    {new Date(p.createdAt).toLocaleDateString()}
+                    {p.paidMonth}{p.paymentDate ? ` · ${p.paymentDate}` : ''} · {p.paymentType}
                   </Text>
+                  {p.receiptImage && token ? (
+                    <View style={styles.receiptWrap}>
+                      <AuthImage
+                        type="receipt"
+                        fileName={p.receiptImage}
+                        token={token}
+                        style={styles.receiptImage}
+                        resizeMode="cover"
+                        placeholder={
+                          <View style={[styles.receiptImage, styles.receiptPlaceholder]}>
+                            <MaterialIcons name="receipt" size={40} color={colors.textSecondary} />
+                          </View>
+                        }
+                      />
+                    </View>
+                  ) : null}
+                  {p.paymentStatus === 'PENDING' ? (
+                    <View style={styles.paymentActions}>
+                      <Pressable
+                        onPress={() =>
+                          router.push({
+                            pathname: '/(tabs)/payments/edit',
+                            params: { paymentData: JSON.stringify(p) },
+                          })
+                        }
+                        style={({ pressed }) => [styles.paymentActionBtn, pressed && styles.paymentActionBtnPressed]}
+                      >
+                        <MaterialIcons name="edit" size={18} color={colors.primary} />
+                        <Text style={styles.paymentActionText}>Update</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => {
+                          Alert.alert(
+                            'Delete payment',
+                            'Remove this payment?',
+                            [
+                              { text: 'Cancel', style: 'cancel' },
+                              {
+                                text: 'Delete',
+                                style: 'destructive',
+                                onPress: async () => {
+                                  try {
+                                    await deletePayment(p.paymentId);
+                                    loadOutletPayments();
+                                  } catch {
+                                    Alert.alert('Error', 'Failed to delete payment.');
+                                  }
+                                },
+                              },
+                            ]
+                          );
+                        }}
+                        style={({ pressed }) => [styles.paymentActionBtn, styles.paymentActionBtnDanger, pressed && styles.paymentActionBtnPressed]}
+                      >
+                        <MaterialIcons name="delete-outline" size={18} color={colors.error} />
+                        <Text style={[styles.paymentActionText, styles.paymentActionTextDanger]}>Delete</Text>
+                      </Pressable>
+                    </View>
+                  ) : null}
                 </View>
               ))
             )}
@@ -672,8 +1220,75 @@ export default function OutletDetailScreen() {
 
         {activeTab === 'discount' && (
           <View style={styles.tabSection}>
-            <SectionHeader title="Discounts" />
-            <Text style={styles.empty}>Discount management for this outlet. Coming soon.</Text>
+            <SectionHeader
+              title="Discounts"
+              actionLabel="Add discount"
+              onAction={() =>
+                router.push({
+                  pathname: '/(tabs)/outlets/discounts/add',
+                  params: { outletId: id ?? '' },
+                })
+              }
+            />
+            {discountsLoading ? (
+              <View style={styles.paymentsLoadingWrap}>
+                <LoadingSpinner />
+              </View>
+            ) : outletDiscounts.length === 0 ? (
+              <Text style={styles.empty}>No discounts for this outlet.</Text>
+            ) : (
+              outletDiscounts.map((d, idx) => (
+                <Pressable
+                  key={`disc-${d.discountId}-${idx}`}
+                  style={styles.discountCard}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/(tabs)/outlets/discounts/details',
+                      params: {
+                        outletId: id,
+                        discountData: JSON.stringify(d),
+                      },
+                    })
+                  }
+                >
+                  <View style={styles.paymentCardRow}>
+                    <Text style={styles.cardTitle}>{d.discountName ?? `Discount #${d.discountId}`}</Text>
+                    <View style={[styles.paymentStatusBadge, d.discountStatus === 'ACTIVE' && styles.paymentStatusPaid]}>
+                      <Text style={styles.paymentStatusText}>{d.discountStatus ?? '—'}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.cardSub}>
+                    {d.discountType === 'PERCENTAGE'
+                      ? `${d.discountValue}% off`
+                      : `LKR ${Number(d.discountValue).toLocaleString()} off`}
+                  </Text>
+                  <Text style={styles.cardDate}>
+                    {d.startDate && d.endDate ? `${d.startDate} – ${d.endDate}` : d.startDate ?? d.endDate ?? ''}
+                  </Text>
+                  {d.items?.length ? (
+                    <Text style={styles.discountItems}>
+                      Items: {d.items.map((i) => i.itemName ?? `#${i.itemId}`).join(', ')}
+                    </Text>
+                  ) : null}
+                  {d.discountImage && token ? (
+                    <View style={styles.receiptWrap}>
+                      <AuthImage
+                        type="discount"
+                        fileName={d.discountImage}
+                        token={token}
+                        style={styles.receiptImage}
+                        resizeMode="cover"
+                        placeholder={
+                          <View style={[styles.receiptImage, styles.receiptPlaceholder]}>
+                            <MaterialIcons name="local-offer" size={40} color={colors.textSecondary} />
+                          </View>
+                        }
+                      />
+                    </View>
+                  ) : null}
+                </Pressable>
+              ))
+            )}
           </View>
         )}
 
@@ -1031,8 +1646,149 @@ const styles = StyleSheet.create({
   },
   cardSub: { fontSize: fontSizes.sm, color: colors.textSecondary, marginTop: 2 },
   cardStatus: { fontSize: fontSizes.xs, color: colors.accent, marginTop: 2 },
+  cardStatusDiscount: { fontSize: fontSizes.xs, color: colors.success },
   cardDate: { fontSize: fontSizes.xs, color: colors.textSecondary, marginTop: 2 },
   empty: { fontSize: fontSizes.sm, color: colors.textSecondary, marginTop: spacing.sm },
+  paymentsLoadingWrap: { paddingVertical: spacing.xl, alignItems: 'center' },
+  paymentCardDetail: {
+    backgroundColor: colors.card,
+    borderRadius: cardRadius,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  paymentCardRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  paymentStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: colors.warning + '22',
+  },
+  paymentStatusPaid: { backgroundColor: colors.success + '22' },
+  paymentStatusText: { fontSize: fontSizes.xs, fontWeight: fontWeights.semibold, color: colors.textPrimary },
+  receiptWrap: { marginTop: spacing.md, borderRadius: 8, overflow: 'hidden', backgroundColor: colors.border, minHeight: 160 },
+  receiptImage: { width: '100%', height: 160 },
+  receiptPlaceholder: { justifyContent: 'center', alignItems: 'center' },
+  paymentActions: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.md, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border },
+  paymentActionBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: borderRadius.md, backgroundColor: colors.primary + '18' },
+  paymentActionBtnPressed: { opacity: 0.9 },
+  paymentActionBtnDanger: { backgroundColor: colors.error + '18' },
+  paymentActionText: { fontSize: fontSizes.sm, fontWeight: fontWeights.semibold, color: colors.primary },
+  paymentActionTextDanger: { color: colors.error },
+  discountCard: {
+    backgroundColor: colors.card,
+    borderRadius: cardRadius,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  discountItems: { fontSize: fontSizes.xs, color: colors.textSecondary, marginTop: 4 },
+  scheduleSubTabs: {
+    flexDirection: 'row',
+    marginBottom: spacing.md,
+    backgroundColor: colors.border + '44',
+    borderRadius: 10,
+    padding: 4,
+  },
+  scheduleSubTab: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  scheduleSubTabActive: { backgroundColor: colors.primary },
+  scheduleSubTabText: { fontSize: fontSizes.sm, fontWeight: fontWeights.medium, color: colors.textSecondary },
+  scheduleSubTabTextActive: { color: colors.white },
+  scheduleList: { marginTop: 2 },
+  scheduleBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  scheduleClosedBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: colors.success + '22',
+  },
+  scheduleClosedBadgeClosed: { backgroundColor: colors.error + '22' },
+  scheduleClosedBadgeText: { fontSize: fontSizes.xs, fontWeight: fontWeights.semibold, color: colors.success },
+  scheduleClosedBadgeTextClosed: { color: colors.error },
+  scheduleTypeBadge: { fontSize: fontSizes.xs, color: colors.primary, fontWeight: fontWeights.semibold },
+  scheduleActionsRow: { flexDirection: 'row', marginTop: spacing.md, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border, gap: spacing.sm },
+  scheduleActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, backgroundColor: colors.primary + '18' },
+  scheduleActionBtnDanger: { backgroundColor: colors.error + '18' },
+  scheduleActionText: { fontSize: fontSizes.sm, fontWeight: fontWeights.medium, color: colors.primary },
+  scheduleActionTextDanger: { color: colors.error },
+  itemFiltersRow: { marginBottom: spacing.md },
+  itemSearchInput: { marginBottom: spacing.sm },
+  itemFilterLabel: { fontSize: fontSizes.sm, fontWeight: fontWeights.medium, color: colors.textPrimary, marginBottom: spacing.xs },
+  itemCard: {
+    backgroundColor: colors.card,
+    borderRadius: cardRadius,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  itemCardMain: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  itemActionsRow: {
+    flexDirection: 'row',
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    gap: spacing.sm,
+    flexWrap: 'wrap',
+  },
+  itemActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+  },
+  itemActionEdit: { backgroundColor: colors.primary + '18' },
+  itemActionStatus: { backgroundColor: colors.border + '88' },
+  itemActionStatusActive: { backgroundColor: colors.success + '22' },
+  itemActionDelete: { backgroundColor: colors.error + '18' },
+  itemActionText: { fontSize: fontSizes.xs, fontWeight: fontWeights.medium },
+  itemActionTextEdit: { color: colors.primary },
+  itemActionTextActive: { color: colors.success },
+  itemActionTextInactive: { color: colors.error },
+  itemActionTextDelete: { color: colors.error },
+  itemsLoadingMoreWrap: { paddingVertical: spacing.md, alignItems: 'center' },
+  loadMoreItemsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.sm,
+  },
+  loadMoreItemsBtnText: { fontSize: 14, color: colors.primary, fontWeight: '600' },
+  itemImageWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginRight: spacing.md,
+  },
+  itemThumb: { width: '100%', height: '100%' },
+  itemImagePlaceholder: {
+    backgroundColor: colors.border + '88',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  itemCardBody: { flex: 1 },
   placeholderText: { color: colors.textSecondary },
   link: { color: colors.primary, marginTop: spacing.sm },
   bottomBarSpacer: { height: 80 },

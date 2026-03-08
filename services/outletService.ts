@@ -329,6 +329,8 @@ export interface UpdateOutletPayload {
   longitude?: number;
   outletType?: string;
   businessCategory?: string;
+  /** Assign or change assigned sub-merchant; use null to unassign */
+  subMerchantId?: number | null;
 }
 
 /** Update outlet - PUT /api/outlets/:id (Bearer token sent by apiClient) */

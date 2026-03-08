@@ -5,6 +5,7 @@ export default function PaymentsLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="submit" />
+      <Stack.Screen name="edit" />
     </Stack>
   );
 }

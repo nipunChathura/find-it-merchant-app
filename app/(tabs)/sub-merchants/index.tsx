@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 
 import { EmptyState, ScreenContainer } from '@/components/dashboard';
+import { AuthImage } from '@/components/ui/AuthImage';
+import { useAuth } from '@/context/auth-context';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useRole } from '@/hooks/useRole';
 import { colors } from '@/theme/colors';
@@ -27,9 +29,11 @@ function getStatusStyle(status: string): { bg: string; text: string } {
 
 function SubMerchantCard({
   item,
+  token,
   onPress,
 }: {
   item: SubMerchantItem;
+  token: string | null;
   onPress?: () => void;
 }) {
   const initial =
@@ -41,9 +45,26 @@ function SubMerchantCard({
       <View style={styles.cardAccent} />
       <View style={styles.cardInner}>
         <View style={styles.cardHeader}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initial}</Text>
-          </View>
+          {item.profileImage && token ? (
+            <View style={styles.avatar}>
+              <AuthImage
+                type="profile"
+                fileName={item.profileImage}
+                token={token}
+                style={styles.avatarImage}
+                resizeMode="cover"
+                placeholder={
+                  <View style={styles.avatarPlaceholder}>
+                    <Text style={styles.avatarText}>{initial}</Text>
+                  </View>
+                }
+              />
+            </View>
+          ) : (
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{initial}</Text>
+            </View>
+          )}
           <View style={styles.cardHeaderText}>
             <Text style={styles.cardTitle} numberOfLines={1}>
               {item.merchantName}
@@ -63,7 +84,7 @@ function SubMerchantCard({
         <View style={styles.cardMeta}>
           {item.merchantEmail ? (
             <View style={styles.metaRow}>
-              <MaterialIcons name="email-outline" size={16} color={colors.textSecondary} />
+              <MaterialIcons name="email" size={16} color={colors.textSecondary} />
               <Text style={styles.metaText} numberOfLines={1}>
                 {item.merchantEmail}
               </Text>
@@ -98,6 +119,7 @@ function SubMerchantCard({
 export default function SubMerchantsScreen() {
   const router = useRouter();
   const role = useRole();
+  const { token } = useAuth();
   const { subMerchants, refresh } = useDashboardData();
 
   useFocusEffect(
@@ -153,6 +175,7 @@ export default function SubMerchantsScreen() {
             <SubMerchantCard
               key={sm.subMerchantId ?? `sm-${idx}`}
               item={sm}
+              token={token}
               onPress={() => router.push(`/(tabs)/sub-merchants/${sm.subMerchantId}`)}
             />
           ))
@@ -252,6 +275,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.md,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: borderRadius.full,
+  },
+  avatarPlaceholder: {
+    width: '100%',
+    height: '100%',
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   avatarText: {
     fontSize: fontSizes.lg,

@@ -15,6 +15,7 @@ export interface MainMerchantInfo {
   merchantNic?: string;
   merchantPhoneNumber?: string;
   merchantType?: string;
+  profileImage?: string | null;
   status?: string;
 }
 
@@ -26,6 +27,7 @@ export interface SubMerchantInfo {
   merchantNic?: string;
   merchantPhoneNumber?: string;
   merchantType?: string;
+  profileImage?: string | null;
   status?: string;
   subMerchantId?: number;
 }
@@ -43,6 +45,8 @@ export interface MerchantLoginResponse {
   mainMerchantInfo?: MainMerchantInfo;
   subMerchantId?: number;
   subMerchantInfo?: SubMerchantInfo;
+  /** Profile image filename for GET /api/images/show?type=profile&fileName= */
+  profileImage?: string | null;
 }
 
 export interface RegisterPayload {
@@ -89,6 +93,24 @@ export interface ResetPasswordPayload {
   confirmPassword: string;
 }
 
+/** Request body for PUT /api/merchant-app/profile */
+export interface UpdateMerchantProfilePayload {
+  merchantName: string;
+  merchantEmail: string;
+  merchantNic: string;
+  merchantProfileImage: string | null;
+  merchantAddress: string;
+  merchantPhoneNumber: string;
+  merchantType: string;
+}
+
+/** Response from PUT /api/merchant-app/profile/image */
+export interface UpdateProfileImageResponse {
+  profileImageUrl?: string | null;
+  profileImage?: string | null;
+  [key: string]: unknown;
+}
+
 export const authService = {
   login: (data: LoginPayload) =>
     apiClient.post<{ status: string; responseCode: string; token: string; role: string; username: string; userId: number; userStatus: string; responseMessage: string }>(API_ENDPOINTS.login, data),
@@ -96,6 +118,21 @@ export const authService = {
   /** Merchant app login - supports MERCHANT and SUBMERCHANT roles */
   merchantLogin: (data: LoginPayload) =>
     apiClient.post<MerchantLoginResponse>(API_ENDPOINTS.merchantLogin, data),
+
+  /** PUT merchant profile. Body: merchantName, merchantEmail, merchantNic, merchantProfileImage, merchantAddress, merchantPhoneNumber, merchantType. */
+  updateMerchantProfile: (payload: UpdateMerchantProfilePayload) =>
+    apiClient.put<{ status?: string; responseMessage?: string }>(API_ENDPOINTS.merchantAppProfile, payload),
+
+  /** PUT merchant profile image. Body: { fileName }. Returns profileImageUrl (filename for image show). */
+  updateProfileImage: (fileName: string) =>
+    apiClient.put<UpdateProfileImageResponse>(API_ENDPOINTS.merchantProfileImage, { fileName }),
+
+  /** PUT merchant password. Body: { currentPassword, newPassword }. Bearer token required. */
+  changePassword: (currentPassword: string, newPassword: string) =>
+    apiClient.put<{ status?: string; responseMessage?: string }>(API_ENDPOINTS.merchantPassword, {
+      currentPassword,
+      newPassword,
+    }),
 
   register: (data: RegisterPayload) =>
     apiClient.post('/api/users/register', data),

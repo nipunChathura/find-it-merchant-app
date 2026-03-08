@@ -37,6 +37,8 @@ export interface SubMerchantItem {
   merchantNic: string;
   merchantType: string;
   subMerchantStatus: string;
+  /** Profile image filename for GET /api/images/show?type=profile&fileName= */
+  profileImage?: string | null;
 }
 
 export interface DashboardSummary {

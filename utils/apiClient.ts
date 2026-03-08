@@ -5,6 +5,13 @@ import { API_BASE_URL } from '@/constants/api';
 
 const TOKEN_KEY = 'findit_auth_token';
 
+/** Called when API returns 401; use to clear session and redirect to login */
+let on401Callback: (() => void | Promise<void>) | null = null;
+
+export function setOn401Callback(callback: (() => void | Promise<void>) | null) {
+  on401Callback = callback;
+}
+
 export const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
@@ -30,6 +37,9 @@ apiClient.interceptors.response.use(
     console.log('[API Error]', err.response?.status ?? err.message, url, err.response?.data ?? err.message);
     if (err.response?.status === 401) {
       SecureStore.deleteItemAsync(TOKEN_KEY);
+      if (on401Callback) {
+        Promise.resolve(on401Callback()).catch(() => {});
+      }
     }
     return Promise.reject(err);
   }

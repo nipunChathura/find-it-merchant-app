@@ -26,7 +26,9 @@ export type AuthUser = {
   mainMerchantInfo?: MainMerchantInfo;
   subMerchantId?: number;
   subMerchantInfo?: SubMerchantInfo;
-  /** Profile image URI (local or remote); set via Change profile image */
+  /** Profile image filename for image show API (type=profile); from login/API response */
+  profileImage?: string | null;
+  /** Profile image URI (local); set via Change profile image */
   profileImageUri?: string | null;
 };
 
@@ -39,8 +41,16 @@ type AuthContextValue = {
   login: (username: string, password: string) => Promise<void>;
   signIn: (data: LoginResponse) => Promise<void>;
   signOut: () => Promise<void>;
-  /** Update profile (name, email, phone, profile image); persists to AsyncStorage */
-  updateProfile: (updates: { username?: string; email?: string; phone?: string; profileImageUri?: string | null }) => Promise<void>;
+  /** Update profile (name, email, phone, profile image, merchant info); persists to AsyncStorage */
+  updateProfile: (updates: {
+    username?: string;
+    email?: string;
+    phone?: string;
+    profileImage?: string | null;
+    profileImageUri?: string | null;
+    mainMerchantInfo?: Partial<MainMerchantInfo>;
+    subMerchantInfo?: Partial<SubMerchantInfo>;
+  }) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -98,6 +108,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       mainMerchantInfo: data.mainMerchantInfo,
       subMerchantId,
       subMerchantInfo: data.subMerchantInfo,
+      profileImage:
+        (data as { profileImage?: string | null }).profileImage ??
+        data.mainMerchantInfo?.profileImage ??
+        data.subMerchantInfo?.profileImage,
     };
     await Promise.all([
       AsyncStorage.setItem(AUTH_TOKEN_KEY, data.token),
@@ -135,10 +149,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
 
-  const updateProfile = useCallback(async (updates: { username?: string; email?: string; phone?: string; profileImageUri?: string | null }) => {
+  const updateProfile = useCallback(async (updates: {
+    username?: string;
+    email?: string;
+    phone?: string;
+    profileImage?: string | null;
+    profileImageUri?: string | null;
+    mainMerchantInfo?: Partial<MainMerchantInfo>;
+    subMerchantInfo?: Partial<SubMerchantInfo>;
+  }) => {
     setUser((prev) => {
       if (!prev) return null;
-      const next = { ...prev, ...updates };
+      const { mainMerchantInfo: mainUp, subMerchantInfo: subUp, ...rest } = updates;
+      const next = { ...prev, ...rest } as AuthUser;
+      if (mainUp != null) {
+        next.mainMerchantInfo = { ...prev.mainMerchantInfo, ...mainUp } as MainMerchantInfo;
+      }
+      if (subUp != null) {
+        next.subMerchantInfo = { ...prev.subMerchantInfo, ...subUp } as SubMerchantInfo;
+      }
       AsyncStorage.setItem(AUTH_USER_KEY, JSON.stringify(next)).catch(() => {});
       return next;
     });

@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { UnauthorizedListener } from '@/components/UnauthorizedListener';
 import { Colors } from '@/constants/theme';
 import { AuthProvider } from '@/context/auth-context';
 import { OutletProvider } from '@/src/context/OutletContext';
@@ -30,6 +31,7 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
+        <UnauthorizedListener />
         <OutletProvider>
           <ThemeProvider value={AppTheme}>
             <Stack screenOptions={{ headerShown: false }}>

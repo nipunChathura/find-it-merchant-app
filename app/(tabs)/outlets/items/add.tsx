@@ -1,8 +1,13 @@
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
+    Alert,
+    Image,
     KeyboardAvoidingView,
     Platform,
+    Pressable,
     ScrollView,
     StyleSheet,
     Text,
@@ -15,21 +20,70 @@ import { ScreenContainer } from '@/components/dashboard';
 import { ThemedText } from '@/components/themed-text';
 import { AppInput } from '@/components/ui/AppInput';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
-import { useOutletContext } from '@/src/context/OutletContext';
+import type { DropdownOption } from '@/components/ui/SearchableDropdown';
+import { SearchableDropdown } from '@/components/ui/SearchableDropdown';
+import { CATEGORY_PAGE_SIZE, categoryToOption, fetchCategories } from '@/services/categoryService';
+import { createItem } from '@/services/itemService';
+import { uploadImage } from '@/services/paymentService';
 import { colors } from '@/theme/colors';
-import { layout, spacing } from '@/theme/spacing';
+import { borderRadius, layout, spacing } from '@/theme/spacing';
 
 export default function AddItemScreen() {
   const { outletId } = useLocalSearchParams<{ outletId: string }>();
   const router = useRouter();
-  const { addItem } = useOutletContext();
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
-  const [category, setCategory] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<DropdownOption | null>(null);
+  const [categoryOptions, setCategoryOptions] = useState<DropdownOption[]>([]);
+  const [categoryOptionsLoading, setCategoryOptionsLoading] = useState(false);
   const [description, setDescription] = useState('');
   const [availability, setAvailability] = useState(true);
+  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const loadCategories = useCallback(async () => {
+    setCategoryOptionsLoading(true);
+    try {
+      const list = await fetchCategories({
+        name: '',
+        categoryType: '',
+        status: '',
+        page: 0,
+        size: CATEGORY_PAGE_SIZE,
+      });
+      const opts = list.map(categoryToOption).filter((o) => o.id !== 0);
+      opts.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+      setCategoryOptions(opts);
+    } catch {
+      setCategoryOptions([]);
+    } finally {
+      setCategoryOptionsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCategories();
+  }, [loadCategories]);
+
+  const pickImage = useCallback(async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Allow access to photos to select an item image.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]?.uri) {
+      setImageUri(result.assets[0].uri);
+      setError('');
+    }
+  }, []);
 
   const handleSave = async () => {
     setError('');
@@ -43,15 +97,35 @@ export default function AddItemScreen() {
       setError('Enter a valid price');
       return;
     }
+    const outletIdNum = parseInt(outletId, 10);
+    if (isNaN(outletIdNum)) {
+      setError('Invalid outlet');
+      return;
+    }
     setLoading(true);
     try {
-      await addItem({
-        outletId,
-        name: name.trim(),
+      let itemImageName: string | null = null;
+      if (imageUri) {
+        setUploadingImage(true);
+        try {
+          itemImageName = await uploadImage(imageUri, 'item');
+        } catch {
+          setError('Failed to upload image');
+          setLoading(false);
+          setUploadingImage(false);
+          return;
+        } finally {
+          setUploadingImage(false);
+        }
+      }
+      await createItem({
+        itemName: name.trim(),
+        itemDescription: description.trim() || null,
+        categoryId: selectedCategory?.id != null && selectedCategory.id !== 0 ? selectedCategory.id : null,
+        outletId: outletIdNum,
         price: num,
-        category: category.trim(),
-        description: description.trim(),
         availability,
+        itemImage: itemImageName,
       });
       router.back();
     } catch {
@@ -101,13 +175,48 @@ export default function AddItemScreen() {
               editable={!loading}
               style={styles.input}
             />
-            <AppInput
-              placeholder="Category"
-              value={category}
-              onChangeText={setCategory}
-              editable={!loading}
-              style={styles.input}
+            <ThemedText style={styles.label}>Category</ThemedText>
+            <SearchableDropdown
+              options={categoryOptions}
+              selected={selectedCategory}
+              onSelect={setSelectedCategory}
+              placeholder="Select category"
+              searchPlaceholder="Search category"
+              loading={categoryOptionsLoading}
+              disabled={loading}
+              onOpen={() => categoryOptions.length === 0 && loadCategories()}
             />
+
+            <ThemedText style={styles.label}>Item image (optional)</ThemedText>
+            {imageUri ? (
+              <View style={styles.imageWrap}>
+                <Image source={{ uri: imageUri }} style={styles.imagePreview} resizeMode="cover" />
+                <View style={styles.imageActions}>
+                  <PrimaryButton
+                    title={uploadingImage ? 'Uploading…' : 'Change image'}
+                    onPress={pickImage}
+                    disabled={loading || uploadingImage}
+                  />
+                  <Pressable
+                    onPress={() => setImageUri(null)}
+                    disabled={loading}
+                    style={styles.removeImageBtn}
+                  >
+                    <Text style={styles.removeImageText}>Remove</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : (
+              <Pressable
+                onPress={pickImage}
+                disabled={loading}
+                style={({ pressed }) => [styles.imagePlaceholder, pressed && styles.imagePlaceholderPressed]}
+              >
+                <MaterialIcons name="add-a-photo" size={40} color={colors.textSecondary} />
+                <Text style={styles.imagePlaceholderText}>Select image</Text>
+              </Pressable>
+            )}
+
             <AppInput
               placeholder="Description"
               value={description}
@@ -137,7 +246,12 @@ export default function AddItemScreen() {
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
-            <PrimaryButton title="Save Item" onPress={handleSave} loading={loading} disabled={loading} />
+            <PrimaryButton
+              title={loading ? (uploadingImage ? 'Uploading…' : 'Saving…') : 'Save Item'}
+              onPress={handleSave}
+              loading={loading}
+              disabled={loading}
+            />
           </ScrollView>
         </KeyboardAvoidingView>
       </ScreenContainer>
@@ -157,6 +271,25 @@ const styles = StyleSheet.create({
   input: { marginBottom: spacing.md },
   inputMultiline: { minHeight: 80 },
   label: { marginBottom: spacing.xs, fontSize: 14 },
+  imageWrap: { marginBottom: spacing.lg },
+  imagePreview: { width: '100%', height: 200, borderRadius: borderRadius.md, marginBottom: spacing.sm, backgroundColor: colors.border },
+  imageActions: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
+  removeImageBtn: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
+  removeImageText: { fontSize: 14, fontWeight: '600', color: colors.error },
+  imagePlaceholder: {
+    width: '100%',
+    height: 120,
+    borderRadius: borderRadius.md,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: colors.border,
+    backgroundColor: colors.border + '44',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.lg,
+  },
+  imagePlaceholderPressed: { opacity: 0.9 },
+  imagePlaceholderText: { fontSize: 14, color: colors.textSecondary, marginTop: spacing.xs },
   row: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
   toggleBtn: {
     flex: 1,

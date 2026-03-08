@@ -13,6 +13,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
+import { AuthImage } from '@/components/ui/AuthImage';
+import { useAuth } from '@/context/auth-context';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useRole } from '@/hooks/useRole';
 import {
@@ -199,7 +201,22 @@ export default function SubMerchantDetailsScreen() {
       >
         <View style={styles.heroCard}>
           <View style={styles.avatarLarge}>
-            <Text style={styles.avatarLargeText}>{initial}</Text>
+            {item.profileImage && token ? (
+              <AuthImage
+                type="profile"
+                fileName={item.profileImage}
+                token={token}
+                style={styles.avatarLargeImage}
+                resizeMode="cover"
+                placeholder={
+                  <View style={styles.avatarLargePlaceholder}>
+                    <Text style={styles.avatarLargeText}>{initial}</Text>
+                  </View>
+                }
+              />
+            ) : (
+              <Text style={styles.avatarLargeText}>{initial}</Text>
+            )}
           </View>
           <Text style={styles.heroName}>{item.merchantName || '—'}</Text>
           <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
@@ -366,6 +383,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
+    overflow: 'hidden',
+  },
+  avatarLargeImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: borderRadius.full,
+  },
+  avatarLargePlaceholder: {
+    width: '100%',
+    height: '100%',
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   avatarLargeText: {
     fontSize: fontSizes.xxl,

@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+    Alert,
     KeyboardAvoidingView,
     Platform,
     Pressable,
@@ -26,6 +27,7 @@ import {
     type LocationOption,
 } from '@/services/locationService';
 import { fetchAssignedOutlets, fetchOutletById, fetchOutletDetails, updateOutletApi } from '@/services/outletService';
+import { fetchSubMerchants } from '@/services/subMerchantService';
 import { useOutletContext } from '@/src/context/OutletContext';
 import { colors } from '@/theme/colors';
 import { cardRadius, spacing } from '@/theme/spacing';
@@ -103,7 +105,23 @@ export default function EditOutletScreen() {
   const [loading, setLoading] = useState(false);
   const [fromContext, setFromContext] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  const [subMerchants, setSubMerchants] = useState<Awaited<ReturnType<typeof fetchSubMerchants>>>([]);
+  const [subMerchantsLoading, setSubMerchantsLoading] = useState(false);
+  const [assignedSubMerchantId, setAssignedSubMerchantId] = useState<number | null>(null);
+  const [selectedSubMerchant, setSelectedSubMerchant] = useState<DropdownOption | null>(null);
+  const [subMerchantUpdateLoading, setSubMerchantUpdateLoading] = useState(false);
 
+  const SUB_MERCHANT_UNASSIGNED_ID = 0;
+  const subMerchantOptions: DropdownOption[] = useMemo(
+    () => [
+      { id: SUB_MERCHANT_UNASSIGNED_ID, name: 'Unassigned' },
+      ...subMerchants.map((sm) => ({
+        id: sm.subMerchantId,
+        name: sm.merchantName ?? `Sub merchant ${sm.subMerchantId}`,
+      })),
+    ],
+    [subMerchants]
+  );
   const loadOutlet = useCallback(async () => {
     if (!id) return;
     setFetching(true);
@@ -129,6 +147,7 @@ export default function EditOutletScreen() {
         if (o.cityId != null) setInitialCityId(o.cityId);
         if (o.latitude != null) setLatitude(String(o.latitude));
         if (o.longitude != null) setLongitude(String(o.longitude));
+        setAssignedSubMerchantId(o.subMerchantId ?? null);
         setFetching(false);
         return;
       }
@@ -187,6 +206,76 @@ export default function EditOutletScreen() {
   useEffect(() => {
     loadOutlet();
   }, [loadOutlet]);
+
+  const loadSubMerchants = useCallback(async () => {
+    if (role !== 'MERCHANT') return;
+    setSubMerchantsLoading(true);
+    try {
+      const list = await fetchSubMerchants();
+      setSubMerchants(list);
+    } catch {
+      setSubMerchants([]);
+    } finally {
+      setSubMerchantsLoading(false);
+    }
+  }, [role]);
+
+  useEffect(() => {
+    if (role === 'MERCHANT') loadSubMerchants();
+  }, [role, loadSubMerchants]);
+
+  useEffect(() => {
+    if (subMerchants.length === 0 && assignedSubMerchantId == null) return;
+    if (assignedSubMerchantId == null) {
+      setSelectedSubMerchant({ id: SUB_MERCHANT_UNASSIGNED_ID, name: 'Unassigned' });
+      return;
+    }
+    const match = subMerchants.find((sm) => sm.subMerchantId === assignedSubMerchantId);
+    if (match) {
+      setSelectedSubMerchant({
+        id: match.subMerchantId,
+        name: match.merchantName ?? `Sub merchant ${match.subMerchantId}`,
+      });
+    } else {
+      setSelectedSubMerchant({ id: assignedSubMerchantId, name: `Sub merchant ${assignedSubMerchantId}` });
+    }
+  }, [subMerchants, assignedSubMerchantId]);
+
+  const onSubMerchantSelect = useCallback(
+    (opt: DropdownOption) => {
+      const newId = opt.id === SUB_MERCHANT_UNASSIGNED_ID ? null : opt.id;
+      if (newId === assignedSubMerchantId) {
+        setSelectedSubMerchant(opt);
+        return;
+      }
+      const newName = opt.name;
+      Alert.alert(
+        'Change assigned sub merchant',
+        `Assign this outlet to "${newName}"? The current assignment will be replaced.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Confirm',
+            onPress: async () => {
+              if (!id) return;
+              setSubMerchantUpdateLoading(true);
+              setError('');
+              try {
+                await updateOutletApi(id, { subMerchantId: newId });
+                setAssignedSubMerchantId(newId);
+                setSelectedSubMerchant(opt);
+              } catch {
+                setError('Failed to update assigned sub merchant');
+              } finally {
+                setSubMerchantUpdateLoading(false);
+              }
+            },
+          },
+        ]
+      );
+    },
+    [id, assignedSubMerchantId]
+  );
 
   const loadProvinces = useCallback(async () => {
     setProvincesLoading(true);
@@ -579,6 +668,25 @@ export default function EditOutletScreen() {
               disabled={loading}
             />
           </Section>
+
+          {role === 'MERCHANT' ? (
+            <Section title="Assign sub merchant">
+              <Text style={styles.dropdownLabel}>Assigned sub merchant</Text>
+              <SearchableDropdown
+                options={subMerchantOptions}
+                selected={selectedSubMerchant}
+                onSelect={onSubMerchantSelect}
+                placeholder="Select sub merchant"
+                searchPlaceholder="Search sub merchant"
+                loading={subMerchantsLoading}
+                disabled={loading || subMerchantUpdateLoading}
+                onOpen={() => subMerchants.length === 0 && loadSubMerchants()}
+              />
+              {subMerchantUpdateLoading ? (
+                <Text style={styles.mapHint}>Updating assignment…</Text>
+              ) : null}
+            </Section>
+          ) : null}
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
 

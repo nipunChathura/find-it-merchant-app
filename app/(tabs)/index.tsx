@@ -257,7 +257,7 @@ export default function DashboardScreen() {
             <ActionButton
               label="Make Payment"
               icon="payment"
-              onPress={() => router.push('/(tabs)/payments')}
+              onPress={() => router.push('/(tabs)/payments/submit')}
             />
           </View>
         </View>

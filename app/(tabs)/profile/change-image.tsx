@@ -7,6 +7,8 @@ import { ScreenContainer } from '@/components/dashboard';
 import { ThemedText } from '@/components/themed-text';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { useAuth } from '@/context/auth-context';
+import { authService } from '@/services/authService';
+import { uploadImage } from '@/services/paymentService';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
@@ -30,7 +32,15 @@ export default function ChangeProfileImageScreen() {
         quality: 0.8,
       });
       if (!result.canceled && result.assets[0]?.uri) {
-        await updateProfile({ profileImageUri: result.assets[0].uri });
+        const uri = result.assets[0].uri;
+        const fileName = await uploadImage(uri, 'profile');
+        if (!fileName) {
+          Alert.alert('Error', 'Failed to upload image.');
+          return;
+        }
+        const { data } = await authService.updateProfileImage(fileName);
+        const profileImageUrl = data?.profileImageUrl ?? data?.profileImage ?? fileName;
+        await updateProfile({ profileImage: profileImageUrl, profileImageUri: null });
         router.back();
       }
     } catch {
@@ -43,7 +53,7 @@ export default function ChangeProfileImageScreen() {
   const handleRemoveImage = async () => {
     setLoading(true);
     try {
-      await updateProfile({ profileImageUri: null });
+      await updateProfile({ profileImage: null, profileImageUri: null });
       router.back();
     } finally {
       setLoading(false);
