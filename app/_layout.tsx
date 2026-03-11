@@ -1,18 +1,19 @@
-import { DarkTheme as NavDarkTheme, DefaultTheme as NavDefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DefaultTheme as NavDefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { UnauthorizedListener } from '@/components/UnauthorizedListener';
 import { Colors } from '@/constants/theme';
 import { AuthProvider } from '@/context/auth-context';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { OutletProvider } from '@/src/context/OutletContext';
 
 export const unstable_settings = {
   anchor: '(tabs)',
 };
 
-const LightTheme = {
+const AppTheme = {
   ...NavDefaultTheme,
   dark: false,
   colors: {
@@ -26,34 +27,24 @@ const LightTheme = {
   },
 };
 
-const DarkTheme = {
-  ...NavDarkTheme,
-  dark: true,
-  colors: {
-    ...NavDarkTheme.colors,
-    primary: Colors.dark.tint,
-    background: Colors.dark.background,
-    card: Colors.dark.background,
-    text: Colors.dark.text,
-    border: Colors.dark.border,
-    notification: Colors.dark.secondary,
-  },
-};
-
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : LightTheme}>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="index" />
-            <Stack.Screen name="login" />
-            <Stack.Screen name="(tabs)" />
-          </Stack>
-          <StatusBar style="dark" />
-        </ThemeProvider>
+        <UnauthorizedListener />
+        <OutletProvider>
+          <ThemeProvider value={AppTheme}>
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="index" />
+              <Stack.Screen name="login" />
+              <Stack.Screen name="register" />
+              <Stack.Screen name="forgot-password" />
+              <Stack.Screen name="reset-password" />
+              <Stack.Screen name="(tabs)" />
+            </Stack>
+            <StatusBar style="dark" />
+          </ThemeProvider>
+        </OutletProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );

@@ -11,6 +11,15 @@ export const spacing = {
   xl: 20,
   xxl: 24,
   xxxl: 32,
+  page: 16,
+} as const;
+
+/** Same horizontal padding for all pages and modal content — consistent width */
+export const layout = {
+  contentPaddingHorizontal: 16,
+  modalMaxWidth: 400,
+  modalBorderRadius: 20,
+  modalPadding: 16,
 } as const;
 
 export const borderRadius = {
@@ -22,3 +31,4 @@ export const borderRadius = {
 } as const;
 
 export const cardRadius = 16;
+export const inputRadius = 12;

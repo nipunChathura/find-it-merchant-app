@@ -1,6 +1,6 @@
 export type {
-    DashboardSummary, Notification, Outlet,
-    OutletStatus,
-    PaymentStatus, QuickAction, UserRole
+    CurrentStatus, DashboardSummary, Notification, Outlet,
+    OutletStatus, PaymentItem,
+    PaymentStatus, PendingPaymentDetail, QuickAction, SubMerchantItem, UserRole
 } from './dashboard';
 
