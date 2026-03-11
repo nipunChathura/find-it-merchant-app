@@ -5,15 +5,27 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '@/theme/colors';
 import { cardRadius, spacing } from '@/theme/spacing';
 import { fontSizes, fontWeights } from '@/theme/typography';
-import type { Outlet, OutletStatus, PaymentStatus } from '@/types';
+import type { CurrentStatus, Outlet, OutletStatus, PaymentStatus } from '@/types';
 
 interface OutletCardProps {
   outlet: Outlet;
   onPress?: () => void;
 }
 
+/** Outlet status from API "status" (ACTIVE, PENDING) */
 const statusConfig: Record<
   OutletStatus,
+  { label: string; bg: string; text: string }
+> = {
+  OPEN: { label: 'Open', bg: colors.successBg, text: colors.success },
+  CLOSED: { label: 'Closed', bg: colors.errorBg, text: colors.error },
+  PENDING: { label: 'Pending', bg: colors.warningBg, text: colors.warning },
+  ACTIVE: { label: 'Active', bg: colors.successBg, text: colors.success },
+};
+
+/** Open/closed from API "currentStatus" */
+const currentStatusConfig: Record<
+  CurrentStatus,
   { label: string; bg: string; text: string }
 > = {
   OPEN: { label: 'Open', bg: colors.successBg, text: colors.success },
@@ -30,8 +42,11 @@ const paymentConfig: Record<
 };
 
 export function OutletCard({ outlet, onPress }: OutletCardProps) {
-  const statusStyle = statusConfig[outlet.status];
+  const statusStyle = statusConfig[outlet.status] ?? statusConfig.CLOSED;
   const paymentStyle = paymentConfig[outlet.paymentStatus];
+  const currentStatusStyle = outlet.currentStatus
+    ? currentStatusConfig[outlet.currentStatus]
+    : null;
 
   const content = (
     <>
@@ -40,16 +55,23 @@ export function OutletCard({ outlet, onPress }: OutletCardProps) {
           {outlet.name}
         </Text>
         <View style={styles.badges}>
-          <View style={[styles.badge, { backgroundColor: statusStyle.bg }]}>
-            <Text style={[styles.badgeText, { color: statusStyle.text }]}>
-              {statusStyle.label}
-            </Text>
-          </View>
           <View style={[styles.badge, { backgroundColor: paymentStyle.bg }]}>
             <Text style={[styles.badgeText, { color: paymentStyle.text }]}>
               {paymentStyle.label}
             </Text>
           </View>
+          <View style={[styles.badge, { backgroundColor: statusStyle.bg }]}>
+            <Text style={[styles.badgeText, { color: statusStyle.text }]}>
+              {statusStyle.label}
+            </Text>
+          </View>
+          {currentStatusStyle ? (
+            <View style={[styles.badge, { backgroundColor: currentStatusStyle.bg }]}>
+              <Text style={[styles.badgeText, { color: currentStatusStyle.text }]}>
+                {currentStatusStyle.label}
+              </Text>
+            </View>
+          ) : null}
         </View>
         <Text style={styles.items}>{outlet.totalItems} items</Text>
       </View>

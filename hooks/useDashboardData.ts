@@ -1,47 +1,69 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 
 import { useAuth } from '@/context/auth-context';
 import { useRole } from '@/hooks/useRole';
 import {
-    fetchDashboardSummary,
-    fetchOutletsForRole,
+    fetchMerchantDashboard,
     fetchRecentNotifications,
 } from '@/services/dashboardService';
-import type { DashboardSummary, Notification, Outlet } from '@/types';
+import type {
+    DashboardSummary,
+    Notification,
+    Outlet,
+    PaymentItem,
+    SubMerchantItem,
+} from '@/types';
 
 export function useDashboardData() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const role = useRole();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [outlets, setOutlets] = useState<Outlet[]>([]);
+  const [payments, setPayments] = useState<PaymentItem[]>([]);
+  const [subMerchants, setSubMerchants] = useState<SubMerchantItem[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(
     async (isRefresh = false) => {
-      if (!token || !role) return;
+      if (!token || !role) {
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
       if (isRefresh) setRefreshing(true);
       else setLoading(true);
       try {
-        const [summaryRes, outletsRes, notifRes] = await Promise.all([
-          fetchDashboardSummary(role, token),
-          fetchOutletsForRole(role, token),
-          fetchRecentNotifications(token),
+        const [dashboardRes, notifRes] = await Promise.all([
+          fetchMerchantDashboard(),
+          fetchRecentNotifications(token, user?.userId),
         ]);
-        setSummary(summaryRes);
-        setOutlets(outletsRes);
+        if (dashboardRes) {
+          setSummary(dashboardRes.summary);
+          setOutlets(dashboardRes.outlets);
+          setPayments(dashboardRes.payments);
+          setSubMerchants(dashboardRes.subMerchants);
+        } else {
+          setSummary(null);
+          setOutlets([]);
+          setPayments([]);
+          setSubMerchants([]);
+        }
         setNotifications(notifRes);
       } catch {
         setSummary(null);
         setOutlets([]);
+        setPayments([]);
+        setSubMerchants([]);
         setNotifications([]);
       } finally {
         setLoading(false);
         setRefreshing(false);
       }
     },
-    [token, role]
+    [token, role, user?.userId]
   );
 
   const refresh = useCallback(() => load(true), [load]);
@@ -50,11 +72,29 @@ export function useDashboardData() {
     load();
   }, [load]);
 
+  // Refetch dashboard when app comes to foreground (e.g. user taps app icon)
+  const appState = useRef(AppState.currentState);
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
+      if (appState.current.match(/inactive|background/) && nextState === 'active') {
+        load(true);
+      }
+      appState.current = nextState;
+    });
+    return () => subscription.remove();
+  }, [load]);
+
+  const unreadNotificationCount = notifications.filter((n) => !n.read).length;
+
   return {
     summary,
-    outlets: outlets.slice(0, 5),
+    outlets,
     allOutlets: outlets,
+    payments,
+    subMerchants,
     notifications: notifications.slice(0, 3),
+    allNotifications: notifications,
+    unreadNotificationCount,
     loading,
     refreshing,
     load,

@@ -12,12 +12,10 @@ import {
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
-  const colorScheme = useColorScheme() ?? 'light';
-  const colors = Colors[colorScheme];
+  const colors = Colors.light;
 
   const [username, setUsername] = useState('');
   const [message, setMessage] = useState('');

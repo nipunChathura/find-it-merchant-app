@@ -3,7 +3,7 @@ import React from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 
 import { colors } from '@/theme/colors';
-import { cardRadius, spacing } from '@/theme/spacing';
+import { spacing } from '@/theme/spacing';
 import { fontSizes, fontWeights } from '@/theme/typography';
 
 interface SummaryCardProps {
@@ -24,7 +24,7 @@ export function SummaryCard({
       <View style={styles.accentBar} />
       <View style={styles.body}>
         <View style={styles.iconWrap}>
-          <MaterialIcons name={icon} size={24} color={colors.primary} />
+          <MaterialIcons name={icon} size={22} color={colors.primary} />
         </View>
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.value}>{value}</Text>
@@ -37,32 +37,43 @@ export function SummaryCard({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.card,
-    borderRadius: cardRadius,
+    borderRadius: 18,
     overflow: 'hidden',
-    minHeight: 120,
+    minHeight: 128,
+    borderWidth: 1,
+    borderColor: colors.border,
     ...shadow,
   },
   accentBar: {
-    height: 3,
-    backgroundColor: colors.primary,
+    height: 4,
     width: '100%',
+    backgroundColor: colors.textSecondary,
   },
   body: {
     padding: spacing.lg,
   },
   iconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: colors.primary + '18',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: spacing.sm,
   },
   title: {
-    fontSize: fontSizes.sm,
+    fontSize: fontSizes.xs,
     fontWeight: fontWeights.medium,
     color: colors.textSecondary,
-    marginBottom: spacing.xs,
+    marginBottom: spacing.xxs,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
   value: {
-    fontSize: fontSizes.xxl,
+    fontSize: 28,
     fontWeight: fontWeights.bold,
     color: colors.textPrimary,
+    letterSpacing: -0.5,
   },
   subtext: {
     fontSize: fontSizes.xs,
