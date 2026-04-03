@@ -12,7 +12,7 @@ interface OutletCardProps {
   onPress?: () => void;
 }
 
-/** Outlet status from API "status" (ACTIVE, PENDING) */
+/** Outlet status from API "status" (ACTIVE, PENDING, INACTIVE, …) */
 const statusConfig: Record<
   OutletStatus,
   { label: string; bg: string; text: string }
@@ -21,7 +21,24 @@ const statusConfig: Record<
   CLOSED: { label: 'Closed', bg: colors.errorBg, text: colors.error },
   PENDING: { label: 'Pending', bg: colors.warningBg, text: colors.warning },
   ACTIVE: { label: 'Active', bg: colors.successBg, text: colors.success },
+  INACTIVE: { label: 'Inactive', bg: colors.warningBg, text: colors.warning },
+  REJECTED: { label: 'Rejected', bg: colors.errorBg, text: colors.error },
+  DELETED: { label: 'Deleted', bg: colors.errorBg, text: colors.error },
+  UNKNOWN: {
+    label: 'Status',
+    bg: colors.textSecondary + '22',
+    text: colors.textSecondary,
+  },
 };
+
+/** Readable name + API code so users can tell what the backend status is */
+function outletStatusBadgeText(outlet: Outlet): string {
+  const meta = statusConfig[outlet.status] ?? statusConfig.UNKNOWN;
+  const name = outlet.statusName?.trim() || meta.label;
+  const code = (outlet.statusRaw ?? outlet.status).toString().trim();
+  if (!code) return name;
+  return `${name} (${code.toUpperCase()})`;
+}
 
 /** Open/closed from API "currentStatus" */
 const currentStatusConfig: Record<
@@ -60,9 +77,9 @@ export function OutletCard({ outlet, onPress }: OutletCardProps) {
               {paymentStyle.label}
             </Text>
           </View>
-          <View style={[styles.badge, { backgroundColor: statusStyle.bg }]}>
-            <Text style={[styles.badgeText, { color: statusStyle.text }]}>
-              {statusStyle.label}
+          <View style={[styles.badge, styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
+            <Text style={[styles.badgeText, { color: statusStyle.text }]} numberOfLines={2}>
+              {outletStatusBadgeText(outlet)}
             </Text>
           </View>
           {currentStatusStyle ? (
@@ -127,6 +144,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xxs,
     borderRadius: 6,
+  },
+  statusBadge: {
+    maxWidth: '55%',
   },
   badgeText: {
     fontSize: fontSizes.xs,

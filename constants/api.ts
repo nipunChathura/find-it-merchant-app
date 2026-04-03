@@ -86,6 +86,9 @@ export const API_ENDPOINTS = {
   categories: '/api/categories',
   /** GET /api/notifications/unread/:userId - Bearer token required */
   notificationsUnread: (userId: string) => `/api/notifications/unread/${userId}`,
+  /** POST /api/notifications/read/:notificationId - mark single notification as read (Bearer) */
+  notificationMarkRead: (notificationId: string | number) =>
+    `/api/notifications/read/${encodeURIComponent(String(notificationId))}`,
 } as const;
 
 export interface LoginRequestBody {

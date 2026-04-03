@@ -1,25 +1,46 @@
 import React from 'react';
-import { StyleSheet } from 'react-native';
+import { ActivityIndicator, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { EmptyState, NotificationItem, ScreenContainer, SectionHeader } from '@/components/dashboard';
 import { useDashboardData } from '@/hooks/useDashboardData';
+import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
 export default function NotificationsScreen() {
-  const { allNotifications: notifications, loading } = useDashboardData();
+  const {
+    allNotifications: normalizedNotifications,
+    loading,
+    refreshing,
+    refresh,
+    markNotificationRead,
+  } = useDashboardData();
 
   return (
-    <ScreenContainer>
+    <ScreenContainer
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.accent} />
+      }
+    >
       <SectionHeader title="Notifications" />
-      {loading ? null : notifications.length === 0 ? (
+      {loading && normalizedNotifications.length === 0 ? (
+        <View style={styles.loading}>
+          <ActivityIndicator size="large" color={colors.accent} />
+        </View>
+      ) : normalizedNotifications.length === 0 ? (
         <EmptyState
           icon="notifications"
           title="No notifications"
           message="You're all caught up."
         />
       ) : (
-        notifications.map((n, idx) => (
-          <NotificationItem key={n?.id ?? `notif-${idx}`} notification={n} />
+        normalizedNotifications.map((n, idx) => (
+          <NotificationItem
+            key={n?.id ?? `notif-${idx}`}
+            notification={n}
+            onReadPress={(item) => {
+              void markNotificationRead(item);
+            }}
+          />
         ))
       )}
     </ScreenContainer>
@@ -27,5 +48,9 @@ export default function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
-  section: { marginBottom: spacing.xxl },
+  loading: {
+    paddingVertical: spacing.xxxl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

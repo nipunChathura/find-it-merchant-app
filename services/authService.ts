@@ -45,8 +45,10 @@ export interface MerchantLoginResponse {
   mainMerchantInfo?: MainMerchantInfo;
   subMerchantId?: number;
   subMerchantInfo?: SubMerchantInfo;
-  /** Profile image filename for GET /api/images/show?type=profile&fileName= */
+  /** Relative path or file name for GET /api/images/show?type=profile&fileName= */
   profileImage?: string | null;
+  /** Login response field (e.g. profile/uuid.jpeg); preferred over profileImage when present */
+  profileImageUrl?: string | null;
 }
 
 export interface RegisterPayload {

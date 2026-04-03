@@ -49,7 +49,16 @@ export interface DashboardSummary {
   pendingPaymentDetails?: PendingPaymentDetail[];
 }
 
-export type OutletStatus = 'OPEN' | 'CLOSED' | 'PENDING' | 'ACTIVE';
+export type OutletStatus =
+  | 'OPEN'
+  | 'CLOSED'
+  | 'PENDING'
+  | 'ACTIVE'
+  | 'INACTIVE'
+  | 'REJECTED'
+  | 'DELETED'
+  /** API returned a value we do not map to a fixed enum */
+  | 'UNKNOWN';
 export type CurrentStatus = 'OPEN' | 'CLOSED';
 export type PaymentStatus = 'PAID' | 'PENDING' | 'OVERDUE';
 
@@ -58,6 +67,10 @@ export interface Outlet {
   name: string;
   /** Outlet status from API "status" (e.g. ACTIVE, PENDING) */
   status: OutletStatus;
+  /** Original `status` string from API (for display next to label) */
+  statusRaw?: string;
+  /** Optional friendly name from API (e.g. statusName), shown when present */
+  statusName?: string;
   /** Open/closed from API "currentStatus" (OPEN, CLOSED) */
   currentStatus?: CurrentStatus;
   totalItems: number;
@@ -88,6 +101,11 @@ export interface Notification {
   timestamp: string;
   read: boolean;
   icon?: string;
+  /**
+   * Id for POST /api/notifications/read/:id when the backend expects messageId (or another field) instead of `id`.
+   * If omitted, `id` is used for mark-read.
+   */
+  readId?: string;
 }
 
 export interface QuickAction {

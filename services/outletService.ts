@@ -61,11 +61,21 @@ function formatLocation(d: AssignedOutletDto): string {
   return parts.length ? parts.join(', ') : '';
 }
 
-/** Map API "status" to outlet status (ACTIVE, PENDING) */
+/** Map API "status" to outlet status; unknown values → UNKNOWN (still show statusRaw on card) */
 function mapOutletStatus(raw: string | undefined): Outlet['status'] {
-  const s = (raw ?? '').toUpperCase();
-  if (s === 'OPEN' || s === 'CLOSED' || s === 'PENDING' || s === 'ACTIVE') return s as Outlet['status'];
-  return 'CLOSED';
+  const s = (raw ?? '').toUpperCase().trim();
+  const known: Outlet['status'][] = [
+    'OPEN',
+    'CLOSED',
+    'PENDING',
+    'ACTIVE',
+    'INACTIVE',
+    'REJECTED',
+    'DELETED',
+  ];
+  if (known.includes(s as Outlet['status'])) return s as Outlet['status'];
+  if (!s) return 'CLOSED';
+  return 'UNKNOWN';
 }
 
 /** Map API "currentStatus" to OPEN | CLOSED */
@@ -78,12 +88,20 @@ function mapCurrentStatus(raw: string | undefined): Outlet['currentStatus'] | un
 /** Map assigned outlet API response to app Outlet type.
  *  outletName -> name, status -> status (ACTIVE/PENDING), currentStatus -> currentStatus (OPEN/CLOSED), itemCount -> totalItems */
 function assignedToOutlet(d: AssignedOutletDto): Outlet {
+  const raw =
+    typeof d.status === 'string' && d.status.trim() ? d.status.trim() : undefined;
   const status = mapOutletStatus(d.status);
   const currentStatus = mapCurrentStatus(d.currentStatus);
+  const statusName =
+    typeof (d as { statusName?: string }).statusName === 'string'
+      ? (d as { statusName?: string }).statusName?.trim()
+      : undefined;
   return {
     id: String(d.outletId),
     name: d.outletName ?? '',
     status,
+    statusRaw: raw,
+    statusName: statusName || undefined,
     currentStatus,
     totalItems: d.itemCount ?? 0,
     paymentStatus: 'PENDING',
@@ -144,10 +162,12 @@ export async function fetchAssignedOutlets(params: AssignedOutletsParams): Promi
 
 /** Map OutletDto (single outlet API) to Outlet */
 function outletDtoToOutlet(d: OutletDto): Outlet {
+  const raw = typeof d.status === 'string' && d.status.trim() ? d.status.trim() : undefined;
   return {
     id: String(d.id),
     name: d.name ?? '',
     status: mapOutletStatus(d.status),
+    statusRaw: raw,
     totalItems: d.totalItems ?? 0,
     paymentStatus: (d.paymentStatus === 'PAID' ? 'PAID' : 'PENDING') as Outlet['paymentStatus'],
     location: d.address,
@@ -202,6 +222,7 @@ export interface OutletDetailsOutletDto {
   accountHolderName?: string;
   rating?: number;
   subscriptionValidUntil?: string;
+  subscriptionStatus?: string;
   subMerchantId?: number;
   subMerchantName?: string;
   merchantName?: string;
@@ -243,10 +264,18 @@ function formatOutletLocation(o: OutletDetailsOutletDto): string {
 
 /** Map outlet from details API to app Outlet type */
 export function detailsOutletToOutlet(o: OutletDetailsOutletDto): Outlet {
+  const raw =
+    typeof o.status === 'string' && o.status.trim() ? o.status.trim() : undefined;
+  const statusName =
+    typeof (o as { statusName?: string }).statusName === 'string'
+      ? (o as { statusName?: string }).statusName?.trim()
+      : undefined;
   return {
     id: String(o.outletId),
     name: o.outletName ?? '',
     status: mapOutletStatus(o.status),
+    statusRaw: raw,
+    statusName: statusName || undefined,
     totalItems: 0,
     paymentStatus: 'PENDING',
     assignedToSubMerchant: o.subMerchantId != null,

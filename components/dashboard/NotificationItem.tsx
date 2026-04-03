@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
@@ -9,6 +9,8 @@ import type { Notification } from '@/types';
 
 interface NotificationItemProps {
   notification: Notification;
+  /** Shown as a "Read" button on each unread row; calls read API for that item only */
+  onReadPress?: (notification: Notification) => void;
 }
 
 function formatTime(iso: string): string {
@@ -21,7 +23,9 @@ function formatTime(iso: string): string {
   return d.toLocaleDateString();
 }
 
-export function NotificationItem({ notification }: NotificationItemProps) {
+export function NotificationItem({ notification, onReadPress }: NotificationItemProps) {
+  const showRead = Boolean(!notification.read && onReadPress);
+
   return (
     <View
       style={[
@@ -53,6 +57,16 @@ export function NotificationItem({ notification }: NotificationItemProps) {
         </Text>
         <Text style={styles.time}>{formatTime(notification.timestamp)}</Text>
       </View>
+      {showRead ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Mark notification as read"
+          onPress={() => onReadPress?.(notification)}
+          style={({ pressed }) => [styles.readBtn, pressed && styles.readBtnPressed]}
+        >
+          <Text style={styles.readBtnText}>Read</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -60,7 +74,7 @@ export function NotificationItem({ notification }: NotificationItemProps) {
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.sm,
     borderRadius: 8,
@@ -83,6 +97,7 @@ const styles = StyleSheet.create({
   },
   body: {
     flex: 1,
+    minWidth: 0,
   },
   title: {
     fontSize: fontSizes.sm,
@@ -101,5 +116,20 @@ const styles = StyleSheet.create({
   time: {
     fontSize: 11,
     color: colors.textSecondary,
+  },
+  readBtn: {
+    marginLeft: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: 8,
+    backgroundColor: colors.accent,
+  },
+  readBtnPressed: {
+    opacity: 0.88,
+  },
+  readBtnText: {
+    fontSize: fontSizes.xs,
+    fontWeight: fontWeights.semibold,
+    color: colors.white,
   },
 });

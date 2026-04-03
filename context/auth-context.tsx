@@ -6,6 +6,7 @@ import type { LoginResponse } from '@/constants/api';
 import {
     authService,
     type MainMerchantInfo,
+    type MerchantLoginResponse,
     type SubMerchantInfo,
 } from '@/services/authService';
 
@@ -90,39 +91,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   /** Merchant app login - calls /api/merchant-app/login, stores token and user */
   const login = useCallback(async (username: string, password: string) => {
     const { data } = await authService.merchantLogin({ username, password });
-    if (data.status !== 'success' && data.status !== 'SUCCESS') {
+    const loginRes = data as MerchantLoginResponse;
+    if (loginRes.status !== 'success' && loginRes.status !== 'SUCCESS') {
       const msg =
         (data as { responseMessage?: string }).responseMessage?.trim() ??
         (data as { fieldErrors?: Array<{ message?: string }> }).fieldErrors?.[0]?.message?.trim() ??
         'Login failed';
       throw new Error(msg);
     }
-    const role = (data.role === 'SUBMERCHANT' ? 'SUBMERCHANT' : 'MERCHANT') as UserRole;
+    const role = (loginRes.role === 'SUBMERCHANT' ? 'SUBMERCHANT' : 'MERCHANT') as UserRole;
     // Support both top-level and nested: MERCHANT → merchantId (5), SUBMERCHANT → subMerchantId (1)
-    const merchantId = data.merchantId ?? data.mainMerchantInfo?.merchantId;
-    const subMerchantId = data.subMerchantId ?? data.subMerchantInfo?.subMerchantId;
+    const merchantId = loginRes.merchantId ?? loginRes.mainMerchantInfo?.merchantId;
+    const subMerchantId = loginRes.subMerchantId ?? loginRes.subMerchantInfo?.subMerchantId;
+    const profilePic =
+      loginRes.profileImageUrl?.trim() ||
+      loginRes.profileImage?.trim() ||
+      loginRes.mainMerchantInfo?.profileImage?.trim() ||
+      loginRes.subMerchantInfo?.profileImage?.trim() ||
+      '';
     const userData: AuthUser = {
-      userId: String(data.userId),
-      username: data.username,
-      email: data.mainMerchantInfo?.merchantEmail ?? data.subMerchantInfo?.merchantEmail,
-      phone: data.mainMerchantInfo?.merchantPhoneNumber ?? data.subMerchantInfo?.merchantPhoneNumber,
+      userId: String(loginRes.userId),
+      username: loginRes.username,
+      email: loginRes.mainMerchantInfo?.merchantEmail ?? loginRes.subMerchantInfo?.merchantEmail,
+      phone: loginRes.mainMerchantInfo?.merchantPhoneNumber ?? loginRes.subMerchantInfo?.merchantPhoneNumber,
       role,
-      userStatus: data.userStatus,
+      userStatus: loginRes.userStatus,
       merchantId,
-      mainMerchantInfo: data.mainMerchantInfo,
+      mainMerchantInfo: loginRes.mainMerchantInfo,
       subMerchantId,
-      subMerchantInfo: data.subMerchantInfo,
-      profileImage:
-        (data as { profileImage?: string | null }).profileImage ??
-        data.mainMerchantInfo?.profileImage ??
-        data.subMerchantInfo?.profileImage,
+      subMerchantInfo: loginRes.subMerchantInfo,
+      profileImage: profilePic.length > 0 ? profilePic : null,
     };
     await Promise.all([
-      AsyncStorage.setItem(AUTH_TOKEN_KEY, data.token),
+      AsyncStorage.setItem(AUTH_TOKEN_KEY, loginRes.token),
       AsyncStorage.setItem(AUTH_USER_KEY, JSON.stringify(userData)),
-      SecureStore.setItemAsync(SECURE_TOKEN_KEY, data.token),
+      SecureStore.setItemAsync(SECURE_TOKEN_KEY, loginRes.token),
     ]);
-    setToken(data.token);
+    setToken(loginRes.token);
     setUser(userData);
   }, []);
 
