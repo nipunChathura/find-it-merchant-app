@@ -34,7 +34,13 @@ export default function DashboardScreen() {
   const router = useRouter();
   const { user, signOut } = useAuth();
   const role = useRole();
-  const { summary: apiSummary, notifications, unreadNotificationCount, refresh } = useDashboardData();
+  const {
+    summary: apiSummary,
+    notifications,
+    unreadNotificationCount,
+    refresh,
+    markNotificationRead,
+  } = useDashboardData();
   const [pendingPaymentsModalVisible, setPendingPaymentsModalVisible] = useState(false);
   /** Outlet list from same API as All Outlets page (GET /api/outlets/assigned) so status matches */
   const [outlets, setOutlets] = useState<Outlet[]>([]);
@@ -84,7 +90,7 @@ export default function DashboardScreen() {
         <View style={styles.headerRight}>
           <Pressable
             style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
-            onPress={() => router.push('/(tabs)/notifications')}
+            onPress={() => router.navigate('/(tabs)/notifications')}
           >
             <MaterialIcons name="notifications" size={24} color={colors.white} />
             {unreadNotificationCount > 0 ? (
@@ -299,7 +305,7 @@ export default function DashboardScreen() {
         <SectionHeader
           title="Recent Notifications"
           actionLabel="View All"
-          onAction={() => router.push('/(tabs)/notifications')}
+          onAction={() => router.navigate('/(tabs)/notifications')}
         />
         <View style={styles.notifCard}>
         {notifications.length === 0 ? (
@@ -310,7 +316,13 @@ export default function DashboardScreen() {
           />
         ) : (
           notifications.map((n, idx) => (
-            <NotificationItem key={n?.id ?? `notif-${idx}`} notification={n} />
+            <NotificationItem
+              key={n?.id ?? `notif-${idx}`}
+              notification={n}
+              onReadPress={(item) => {
+                void markNotificationRead(item);
+              }}
+            />
           ))
         )}
         </View>

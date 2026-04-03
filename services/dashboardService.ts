@@ -92,6 +92,7 @@ function mapApiOutletToOutlet(
   d: DashboardOutletApi,
   pendingOutletIds: Set<number>
 ): Outlet {
+  const raw = d.status != null ? String(d.status).trim() : '';
   const status = d.status === 'ACTIVE' ? 'OPEN' : 'CLOSED';
   const paymentStatus: PaymentStatus = pendingOutletIds.has(d.outletId)
     ? 'PENDING'
@@ -103,6 +104,7 @@ function mapApiOutletToOutlet(
     id: String(d.outletId),
     name: d.outletName ?? '',
     status,
+    statusRaw: raw || undefined,
     totalItems: 0,
     paymentStatus,
     assignedToSubMerchant: d.subMerchantId != null,
@@ -234,12 +236,98 @@ export interface NotificationDto {
 }
 
 function mapNotificationDto(d: NotificationDto, index: number): Notification {
-  const id = d.id != null ? String(d.id) : `notif-${index}`;
-  const title = d.title ?? d.message ?? 'Notification';
-  const body = d.body ?? d.message ?? '';
-  const timestamp = d.timestamp ?? d.createdAt ?? new Date().toISOString();
-  const read = d.read ?? false;
-  return { id, title, body, timestamp, read };
+  const o = d as Record<string, unknown>;
+  const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
+  const numStr = (v: unknown) =>
+    v != null && v !== '' && (typeof v === 'number' || typeof v === 'string') ? String(v).trim() : '';
+  /** Prefer messageId for read API path when backend uses it (e.g. /read/168) */
+  const messageIdStr = numStr(o.messageId);
+  const notificationIdStr = numStr(o.notificationId);
+  const idStr = d.id != null ? String(d.id).trim() : '';
+  /** List key: notification id when present; else message id */
+  const id = idStr || messageIdStr || notificationIdStr || `notif-${index}`;
+  /** POST /read/:id uses message id when API sends both notification id and message id */
+  const readId =
+    messageIdStr && idStr && messageIdStr !== idStr ? messageIdStr : undefined;
+  const rawTitle =
+    str(d.title) ||
+    str(o.subject) ||
+    str(o.notificationTitle) ||
+    str(d.message);
+  const rawBody =
+    str(d.body) ||
+    str(o.description) ||
+    str(o.notificationBody) ||
+    str(o.notificationMessage);
+  const messageOnly = str(d.message);
+  const title = rawTitle || messageOnly || 'Notification';
+  const body =
+    rawBody ||
+    (rawTitle && messageOnly && messageOnly !== rawTitle ? messageOnly : '') ||
+    (!rawTitle && messageOnly ? '' : '');
+  const timestamp =
+    str(d.timestamp) ||
+    str(d.createdAt) ||
+    str(o.created_at) ||
+    str(o.sentAt) ||
+    new Date().toISOString();
+  const read = Boolean(d.read ?? o.isRead);
+  const out: Notification = { id, title, body, timestamp, read };
+  if (readId) out.readId = readId;
+  return out;
+}
+
+/** Normalize common API envelope shapes (array, { data }, Spring Page { content }, etc.) */
+function extractNotificationList(raw: unknown): NotificationDto[] {
+  if (raw == null) return [];
+  if (Array.isArray(raw)) return raw as NotificationDto[];
+  if (typeof raw !== 'object') return [];
+  const root = raw as Record<string, unknown>;
+  const tryArray = (v: unknown): NotificationDto[] | null =>
+    Array.isArray(v) ? (v as NotificationDto[]) : null;
+  const direct =
+    tryArray(root.data) ??
+    tryArray(root.notifications) ??
+    tryArray(root.content) ??
+    tryArray(root.results) ??
+    tryArray(root.items);
+  if (direct) return direct;
+  const nested = root.data;
+  if (nested && typeof nested === 'object' && !Array.isArray(nested)) {
+    const inner = nested as Record<string, unknown>;
+    return (
+      tryArray(inner.notifications) ??
+      tryArray(inner.content) ??
+      tryArray(inner.data) ??
+      []
+    );
+  }
+  return [];
+}
+
+/** Client-side placeholder ids when API omits `id` (cannot call mark-read for these). */
+const CLIENT_NOTIFICATION_ID_PLACEHOLDER = /^notif-\d+$/;
+
+/**
+ * Mark one notification as read: POST /api/notifications/read/:id (Bearer token).
+ */
+export async function markNotificationRead(notificationId: string): Promise<boolean> {
+  const id = String(notificationId).trim();
+  if (!id || CLIENT_NOTIFICATION_ID_PLACEHOLDER.test(id)) return false;
+  try {
+    const url = API_ENDPOINTS.notificationMarkRead(id);
+    await apiClient.post(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Message / inbox section: only unread items (read items stay off the list).
+ */
+export function filterUnreadInbox(list: Notification[]): Notification[] {
+  return list.filter((n) => !n.read);
 }
 
 /**
@@ -250,9 +338,9 @@ export async function fetchUnreadNotifications(userId: string): Promise<Notifica
   if (!userId.trim()) return [];
   try {
     const url = API_ENDPOINTS.notificationsUnread(userId);
-    const { data } = await apiClient.get<NotificationDto[] | { data?: NotificationDto[] }>(url);
-    const list = Array.isArray(data) ? data : (data as { data?: NotificationDto[] })?.data ?? [];
-    return (list as NotificationDto[]).map(mapNotificationDto);
+    const { data } = await apiClient.get<unknown>(url);
+    const list = extractNotificationList(data);
+    return filterUnreadInbox(list.map(mapNotificationDto));
   } catch {
     return [];
   }
@@ -269,9 +357,9 @@ export async function fetchRecentNotifications(
     return fetchUnreadNotifications(userId);
   }
   await delay(MOCK_DELAY);
-  return [
+  return filterUnreadInbox([
     { id: '1', title: 'Payment received', body: 'Payment of $1,200 received.', timestamp: new Date().toISOString(), read: false },
     { id: '2', title: 'Outlet update', body: 'Downtown Branch schedule updated.', timestamp: new Date(Date.now() - 3600000).toISOString(), read: true },
     { id: '3', title: 'New order', body: 'Bulk order #8842 placed.', timestamp: new Date(Date.now() - 7200000).toISOString(), read: false },
-  ];
+  ]);
 }

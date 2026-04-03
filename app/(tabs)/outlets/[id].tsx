@@ -524,11 +524,21 @@ export default function OutletDetailScreen() {
           ? 'Inactive'
           : outlet.status === 'PENDING'
             ? 'Pending'
-            : 'Closed';
+            : outlet.status === 'REJECTED'
+              ? 'Rejected'
+              : outlet.status === 'DELETED'
+                ? 'Deleted'
+                : outlet.status === 'UNKNOWN'
+                  ? 'Status'
+                  : 'Closed';
+  const statusCode = (outlet.statusRaw ?? outlet.status).toString().toUpperCase();
+  const statusBadgeTitle = outlet.statusName?.trim()
+    ? `${outlet.statusName.trim()} (${statusCode})`
+    : `${statusLabel} (${statusCode})`;
   const statusColor =
     outlet.status === 'OPEN' || outlet.status === 'ACTIVE'
       ? colors.success
-      : outlet.status === 'PENDING'
+      : outlet.status === 'PENDING' || outlet.status === 'UNKNOWN'
         ? colors.warning
         : colors.error;
   const hasRealCoordinates =
@@ -554,7 +564,7 @@ export default function OutletDetailScreen() {
             <View style={styles.heroCard}>
               <Text style={styles.heroTitle} numberOfLines={2}>{outlet.name}</Text>
               <View style={[styles.statusBadge, { backgroundColor: statusColor + '22' }]}>
-                <Text style={[styles.statusBadgeText, { color: statusColor }]}>{statusLabel}</Text>
+                <Text style={[styles.statusBadgeText, { color: statusColor }]}>{statusBadgeTitle}</Text>
               </View>
               {outlet.currentStatus ? (
                 <Text style={styles.heroSub}>{outlet.currentStatus}</Text>
@@ -693,7 +703,10 @@ export default function OutletDetailScreen() {
               </View>
             ) : null}
 
-            {outletDetails?.outlet && (outletDetails.outlet.rating != null || outletDetails.outlet.subscriptionValidUntil) ? (
+            {outletDetails?.outlet &&
+            (outletDetails.outlet.rating != null ||
+              outletDetails.outlet.subscriptionValidUntil ||
+              outletDetails.outlet.subscriptionStatus) ? (
               <View style={styles.card}>
                 <View style={styles.cardAccent} />
                 <View style={styles.cardBody}>
@@ -702,6 +715,9 @@ export default function OutletDetailScreen() {
                     <Text style={styles.sectionTitle}>Rating & subscription</Text>
                   </View>
                   {outletDetails.outlet.rating != null ? <InfoRow label="Rating" value={String(outletDetails.outlet.rating)} /> : null}
+                  {outletDetails.outlet.subscriptionStatus ? (
+                    <InfoRow label="Subscription status" value={outletDetails.outlet.subscriptionStatus} />
+                  ) : null}
                   {outletDetails.outlet.subscriptionValidUntil ? <InfoRow label="Subscription valid until" value={outletDetails.outlet.subscriptionValidUntil.split('T')[0]} /> : null}
                 </View>
               </View>
