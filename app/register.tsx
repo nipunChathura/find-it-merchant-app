@@ -4,10 +4,10 @@ import { useState } from 'react';
 import {
     KeyboardAvoidingView,
     Platform,
+    Pressable,
     ScrollView,
     StyleSheet,
     Text,
-    TouchableOpacity,
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,7 +20,7 @@ import { authService } from '@/services/authService';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
-const MERCHANT_TYPES = ['SILVER', 'GOLD', 'PLATINUM'] as const;
+const DEFAULT_MERCHANT_TYPE = 'FREE';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -29,10 +29,11 @@ export default function RegisterScreen() {
   const [merchantNic, setMerchantNic] = useState('');
   const [merchantAddress, setMerchantAddress] = useState('');
   const [merchantPhoneNumber, setMerchantPhoneNumber] = useState('');
-  const [merchantType, setMerchantType] = useState<string>('SILVER');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -79,7 +80,7 @@ export default function RegisterScreen() {
         merchantProfileImage: null,
         merchantAddress: merchantAddress.trim(),
         merchantPhoneNumber: merchantPhoneNumber.trim(),
-        merchantType,
+        merchantType: DEFAULT_MERCHANT_TYPE,
         username: username.trim(),
         password,
       });
@@ -166,22 +167,6 @@ export default function RegisterScreen() {
               style={styles.input}
             />
 
-            <ThemedText style={styles.label}>Merchant Type</ThemedText>
-            <View style={styles.typeRow}>
-              {MERCHANT_TYPES.map((type) => (
-                <TouchableOpacity
-                  key={type}
-                  style={[styles.typeBtn, merchantType === type && styles.typeBtnActive]}
-                  onPress={() => setMerchantType(type)}
-                  disabled={loading}
-                >
-                  <Text style={[styles.typeBtnText, merchantType === type && styles.typeBtnTextActive]}>
-                    {type}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
             <AppInput
               placeholder="Username *"
               value={username}
@@ -190,22 +175,54 @@ export default function RegisterScreen() {
               editable={!loading}
               style={styles.input}
             />
-            <AppInput
-              placeholder="Password * (min 6 characters)"
-              value={password}
-              onChangeText={(t) => { setPassword(t); setError(''); }}
-              secureTextEntry
-              editable={!loading}
-              style={styles.input}
-            />
-            <AppInput
-              placeholder="Confirm Password *"
-              value={confirmPassword}
-              onChangeText={(t) => { setConfirmPassword(t); setError(''); }}
-              secureTextEntry
-              editable={!loading}
-              style={styles.input}
-            />
+            <View style={styles.passwordField}>
+              <AppInput
+                placeholder="Password * (min 6 characters)"
+                value={password}
+                onChangeText={(t) => { setPassword(t); setError(''); }}
+                secureTextEntry={!passwordVisible}
+                editable={!loading}
+                style={[styles.input, styles.passwordInput]}
+                autoCapitalize="none"
+              />
+              <Pressable
+                style={({ pressed }) => [styles.passwordToggle, pressed && styles.passwordTogglePressed]}
+                onPress={() => setPasswordVisible((v) => !v)}
+                disabled={loading}
+                hitSlop={8}
+                accessibilityLabel={passwordVisible ? 'Hide password' : 'Show password'}
+              >
+                <MaterialIcons
+                  name={passwordVisible ? 'visibility-off' : 'visibility'}
+                  size={22}
+                  color={colors.textSecondary}
+                />
+              </Pressable>
+            </View>
+            <View style={styles.passwordField}>
+              <AppInput
+                placeholder="Confirm Password *"
+                value={confirmPassword}
+                onChangeText={(t) => { setConfirmPassword(t); setError(''); }}
+                secureTextEntry={!confirmPasswordVisible}
+                editable={!loading}
+                style={[styles.input, styles.passwordInput]}
+                autoCapitalize="none"
+              />
+              <Pressable
+                style={({ pressed }) => [styles.passwordToggle, pressed && styles.passwordTogglePressed]}
+                onPress={() => setConfirmPasswordVisible((v) => !v)}
+                disabled={loading}
+                hitSlop={8}
+                accessibilityLabel={confirmPasswordVisible ? 'Hide confirm password' : 'Show confirm password'}
+              >
+                <MaterialIcons
+                  name={confirmPasswordVisible ? 'visibility-off' : 'visibility'}
+                  size={22}
+                  color={colors.textSecondary}
+                />
+              </Pressable>
+            </View>
 
             {error ? (
               <Text style={styles.error}>{error}</Text>
@@ -264,34 +281,27 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     lineHeight: 20,
   },
-  label: {
-    marginBottom: spacing.xs,
-    fontSize: 14,
+  input: { marginBottom: spacing.md },
+  passwordField: {
+    position: 'relative',
+    marginBottom: spacing.md,
   },
-  typeRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
+  passwordInput: {
+    marginBottom: 0,
+    paddingRight: 46,
   },
-  typeBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: colors.border,
+  passwordToggle: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    width: 44,
+    height: 48,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  typeBtnActive: {
-    backgroundColor: colors.primary,
+  passwordTogglePressed: {
+    opacity: 0.65,
   },
-  typeBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  typeBtnTextActive: {
-    color: colors.white,
-  },
-  input: { marginBottom: spacing.md },
   error: {
     color: colors.error,
     marginBottom: spacing.sm,

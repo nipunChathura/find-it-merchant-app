@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenContainer } from '@/components/dashboard';
 import { AppInput } from '@/components/ui/AppInput';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { DatePickerField, TimePickerField } from '@/components/ui/SchedulePickerFields';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import {
     fetchOutletScheduleDetails,
@@ -29,6 +30,7 @@ import {
 import { colors } from '@/theme/colors';
 import { layout, spacing } from '@/theme/spacing';
 import { fontSizes, fontWeights } from '@/theme/typography';
+import { normalizeApiTimeToHHmm, parseYYYYMMDDToDate, toYYYYMMDD } from '@/utils/scheduleDateTime';
 
 export default function EditScheduleScreen() {
   const { id, outletId } = useLocalSearchParams<{ id: string; outletId: string }>();
@@ -73,15 +75,18 @@ export default function EditScheduleScreen() {
           setDayOfWeek((slot as NormalScheduleSlot).dayOfWeek);
         }
         if (type === 'EMERGENCY' || type === 'DAILY') {
-          setSpecialDate((slot as SpecialScheduleSlot).specialDate ?? '');
+          const raw = (slot as SpecialScheduleSlot).specialDate?.trim() ?? '';
+          setSpecialDate(raw ? raw.slice(0, 10) : toYYYYMMDD(new Date()));
         }
         if (type === 'TEMPORARY') {
           const s = slot as SpecialScheduleSlot;
-          setStartDate(s.startDate ?? '');
-          setEndDate(s.endDate ?? '');
+          const sd = s.startDate?.trim() ?? '';
+          const ed = s.endDate?.trim() ?? '';
+          setStartDate(sd ? sd.slice(0, 10) : toYYYYMMDD(new Date()));
+          setEndDate(ed ? ed.slice(0, 10) : toYYYYMMDD(new Date()));
         }
-        setOpenTime(slot.openTime ?? '09:00');
-        setCloseTime(slot.closeTime ?? '18:00');
+        setOpenTime(normalizeApiTimeToHHmm(slot.openTime, '09:00'));
+        setCloseTime(normalizeApiTimeToHHmm(slot.closeTime, '18:00'));
         setIsClosed((slot as NormalScheduleSlot & SpecialScheduleSlot).isClosed === 'Y');
         setReason((slot as SpecialScheduleSlot).reason ?? '');
       })
@@ -221,55 +226,24 @@ export default function EditScheduleScreen() {
           )}
 
           {(scheduleType === 'EMERGENCY' || scheduleType === 'DAILY') && (
-            <>
-              <Text style={styles.label}>Date (YYYY-MM-DD)</Text>
-              <AppInput
-                placeholder="e.g. 2025-03-15"
-                value={specialDate}
-                onChangeText={setSpecialDate}
-                style={styles.input}
-                editable={!saving}
-              />
-            </>
+            <DatePickerField label="Date" value={specialDate} onChange={setSpecialDate} disabled={saving} />
           )}
 
           {scheduleType === 'TEMPORARY' && (
             <>
-              <Text style={styles.label}>Start date (YYYY-MM-DD)</Text>
-              <AppInput
-                placeholder="e.g. 2025-03-01"
-                value={startDate}
-                onChangeText={setStartDate}
-                style={styles.input}
-                editable={!saving}
-              />
-              <Text style={styles.label}>End date (YYYY-MM-DD)</Text>
-              <AppInput
-                placeholder="e.g. 2025-03-07"
+              <DatePickerField label="Start date" value={startDate} onChange={setStartDate} disabled={saving} />
+              <DatePickerField
+                label="End date"
                 value={endDate}
-                onChangeText={setEndDate}
-                style={styles.input}
-                editable={!saving}
+                onChange={setEndDate}
+                disabled={saving}
+                minimumDate={parseYYYYMMDDToDate(startDate)}
               />
             </>
           )}
 
-          <Text style={styles.label}>Open time (HH:mm)</Text>
-          <AppInput
-            placeholder="e.g. 09:00"
-            value={openTime}
-            onChangeText={setOpenTime}
-            style={styles.input}
-            editable={!saving}
-          />
-          <Text style={styles.label}>Close time (HH:mm)</Text>
-          <AppInput
-            placeholder="e.g. 18:00"
-            value={closeTime}
-            onChangeText={setCloseTime}
-            style={styles.input}
-            editable={!saving}
-          />
+          <TimePickerField label="Open time" value={openTime} onChange={setOpenTime} disabled={saving} />
+          <TimePickerField label="Close time" value={closeTime} onChange={setCloseTime} disabled={saving} />
 
           <View style={styles.switchRow}>
             <Text style={styles.label}>Closed</Text>

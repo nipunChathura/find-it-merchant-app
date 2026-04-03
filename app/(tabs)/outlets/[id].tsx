@@ -231,6 +231,12 @@ export default function OutletDetailScreen() {
     loadOutletSchedules();
   }, [loadOutletSchedules]);
 
+  useFocusEffect(
+    useCallback(() => {
+      if (id && activeTab === 'schedule') loadOutletSchedules();
+    }, [id, activeTab, loadOutletSchedules])
+  );
+
   const handleDeleteSchedule = useCallback(
     (scheduleId: number, label: string) => {
       if (!id) return;
@@ -340,6 +346,12 @@ export default function OutletDetailScreen() {
   useEffect(() => {
     loadOutletItems();
   }, [loadOutletItems]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (id && activeTab === 'items') loadOutletItems();
+    }, [id, activeTab, loadOutletItems])
+  );
 
   const handleDeleteItem = useCallback(
     (item: ItemApiDto) => {
@@ -900,7 +912,10 @@ export default function OutletDetailScreen() {
                       <View style={styles.itemCardBody}>
                         <Text style={styles.cardTitle}>{item.itemName}</Text>
                         <Text style={styles.cardSub}>
-                          LKR {Number(item.price).toLocaleString()} · {item.categoryName ?? 'Uncategorized'}
+                          {item.price != null && !Number.isNaN(Number(item.price))
+                            ? `LKR ${Number(item.price).toLocaleString()}`
+                            : 'No price set'}{' '}
+                          · {item.categoryName ?? 'Uncategorized'}
                         </Text>
                         <Text style={styles.cardStatus}>
                           {item.availability ? 'Available' : 'Unavailable'}
@@ -1342,13 +1357,6 @@ export default function OutletDetailScreen() {
           </Pressable>
         ))}
       </View>
-
-      {/* FAB to return to outlet info (map + details + edit) when on another tab */}
-      {activeTab !== 'info' && (
-        <Pressable style={styles.fabInfo} onPress={() => setActiveTab('info')}>
-          <MaterialIcons name="info-outline" size={24} color={colors.white} />
-        </Pressable>
-      )}
 
     </View>
   );

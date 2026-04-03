@@ -9,7 +9,7 @@ export interface AppInputProps extends TextInputProps {
   error?: boolean;
 }
 
-export function AppInput({ style, error, ...props }: AppInputProps) {
+export function AppInput({ style, error, showSoftInputOnFocus = true, ...props }: AppInputProps) {
   return (
     <TextInput
       style={[
@@ -19,6 +19,7 @@ export function AppInput({ style, error, ...props }: AppInputProps) {
       ]}
       placeholderTextColor={colors.textSecondary}
       {...props}
+      showSoftInputOnFocus={showSoftInputOnFocus}
     />
   );
 }

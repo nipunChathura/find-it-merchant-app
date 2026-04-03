@@ -65,7 +65,7 @@ export interface MerchantOnboardingPayload {
   merchantProfileImage: string | null;
   merchantAddress: string;
   merchantPhoneNumber: string;
-  merchantType: string;
+  merchantType?: string;
   username: string;
   password: string;
 }
@@ -141,7 +141,10 @@ export const authService = {
 
   /** Merchant onboarding - main merchant registration */
   merchantOnboarding: (data: MerchantOnboardingPayload) =>
-    apiClient.post<MerchantOnboardingResponse>(API_ENDPOINTS.merchantOnboarding, data),
+    apiClient.post<MerchantOnboardingResponse>(API_ENDPOINTS.merchantOnboarding, {
+      ...data,
+      merchantType: 'FREE',
+    }),
 
   forgotPassword: (data: ForgotPasswordPayload) =>
     apiClient.post('/api/users/forgot-password', data),

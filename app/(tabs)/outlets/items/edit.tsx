@@ -14,7 +14,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ScreenContainer } from '@/components/dashboard';
 import { ThemedText } from '@/components/themed-text';
@@ -47,13 +47,16 @@ export default function EditItemScreen() {
   const { id, outletId, itemData } = params;
   const router = useRouter();
   const { token } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const itemFromApi = useMemo(() => parseItemFromParams(itemData), [itemData]);
 
   const [itemName, setItemName] = useState(itemFromApi?.itemName ?? '');
   const [itemDescription, setItemDescription] = useState(itemFromApi?.itemDescription ?? '');
   const [price, setPrice] = useState(
-    itemFromApi != null ? String(itemFromApi.price) : ''
+    itemFromApi != null && itemFromApi.price != null && !Number.isNaN(Number(itemFromApi.price))
+      ? String(itemFromApi.price)
+      : ''
   );
   const [categoryId, setCategoryId] = useState(
     itemFromApi?.categoryId != null ? String(itemFromApi.categoryId) : ''
@@ -137,10 +140,15 @@ export default function EditItemScreen() {
       setError('Enter item name');
       return;
     }
-    const num = parseFloat(price.replace(/,/g, ''));
-    if (isNaN(num) || num < 0) {
-      setError('Enter a valid price');
-      return;
+    const priceRaw = price.replace(/,/g, '').trim();
+    let priceValue: number | null = null;
+    if (priceRaw !== '') {
+      const parsed = parseFloat(priceRaw);
+      if (Number.isNaN(parsed) || parsed < 0) {
+        setError('Enter a valid price');
+        return;
+      }
+      priceValue = parsed;
     }
     const outletIdNum = parseInt(outletId, 10);
     if (isNaN(outletIdNum)) {
@@ -168,7 +176,7 @@ export default function EditItemScreen() {
         itemDescription: itemDescription.trim() || null,
         categoryId: categoryId.trim() ? parseInt(categoryId, 10) || null : null,
         outletId: outletIdNum,
-        price: num,
+        price: priceValue,
         availability,
         itemImage: itemImageName,
         status,
@@ -193,14 +201,23 @@ export default function EditItemScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScreenContainer>
+      <View style={styles.root}>
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          enabled={Platform.OS === 'ios'}
           style={styles.keyboard}
         >
           <ScrollView
-            contentContainerStyle={styles.scroll}
+            style={styles.scrollView}
+            contentContainerStyle={[
+              styles.scroll,
+              {
+                paddingTop: spacing.page,
+                paddingBottom: Math.max(insets.bottom, spacing.xxxl),
+              },
+            ]}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             showsVerticalScrollIndicator={false}
           >
             <ThemedText type="title" style={styles.title}>
@@ -217,7 +234,7 @@ export default function EditItemScreen() {
             />
             <ThemedText style={styles.label}>Price (LKR)</ThemedText>
             <AppInput
-              placeholder="Enter price"
+              placeholder="Price (LKR, optional)"
               value={price}
               onChangeText={setPrice}
               keyboardType="decimal-pad"
@@ -334,18 +351,19 @@ export default function EditItemScreen() {
             />
           </ScrollView>
         </KeyboardAvoidingView>
-      </ScreenContainer>
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
+  root: { flex: 1, backgroundColor: colors.background },
   keyboard: { flex: 1 },
+  scrollView: { flex: 1 },
   scroll: {
+    flexGrow: 1,
     paddingHorizontal: layout.contentPaddingHorizontal,
-    paddingTop: spacing.page,
-    paddingBottom: spacing.xxxl,
   },
   title: { marginBottom: spacing.xl },
   input: { marginBottom: spacing.md },

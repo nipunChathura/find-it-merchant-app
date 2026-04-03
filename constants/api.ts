@@ -56,8 +56,8 @@ export const API_ENDPOINTS = {
   discountById: (id: number) => `/api/discounts/${id}`,
   /** GET - outlet schedule details (NORMAL, EMERGENCY, TEMPORARY, DAILY). Bearer token required */
   outletScheduleDetails: (id: string) => `/api/merchant-app/outlets/${id}/schedule-details`,
-  /** POST - create schedule. Same path as GET, body JSON. Bearer token required */
-  outletScheduleCreate: (outletId: string) => `/api/merchant-app/outlets/${outletId}/schedule-details`,
+  /** POST - create schedule. Body: scheduleType, dayOfWeek, specialDate, startDate, endDate, openTime, closeTime, isClosed, reason. Bearer token required */
+  outletScheduleCreate: (outletId: string) => `/api/outlets/${outletId}/schedules`,
   /** PUT - update schedule. Bearer token required */
   outletScheduleUpdate: (outletId: string, scheduleId: number) => `/api/outlets/${outletId}/schedules/${scheduleId}`,
   /** DELETE - remove schedule slot. Bearer token required */

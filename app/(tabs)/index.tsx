@@ -1,11 +1,12 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
     Modal,
     Platform,
     Pressable,
+    RefreshControl,
     ScrollView,
     StyleSheet,
     Text,
@@ -42,6 +43,7 @@ export default function DashboardScreen() {
     markNotificationRead,
   } = useDashboardData();
   const [pendingPaymentsModalVisible, setPendingPaymentsModalVisible] = useState(false);
+  const [refreshingDashboard, setRefreshingDashboard] = useState(false);
   /** Outlet list from same API as All Outlets page (GET /api/outlets/assigned) so status matches */
   const [outlets, setOutlets] = useState<Outlet[]>([]);
 
@@ -69,11 +71,27 @@ export default function DashboardScreen() {
     }
   }, [role, user?.merchantId, user?.subMerchantId]);
 
-  useEffect(() => {
-    loadOutlets();
-  }, [loadOutlets]);
+  useFocusEffect(
+    useCallback(() => {
+      void loadOutlets();
+    }, [loadOutlets])
+  );
+
+  const handleDashboardRefresh = useCallback(async () => {
+    setRefreshingDashboard(true);
+    try {
+      await Promise.all([refresh(), loadOutlets()]);
+    } finally {
+      setRefreshingDashboard(false);
+    }
+  }, [refresh, loadOutlets]);
 
   const insets = useSafeAreaInsets();
+  const todayLabel = new Date().toLocaleDateString('en-LK', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
 
   return (
     <View style={styles.screen}>
@@ -117,9 +135,34 @@ export default function DashboardScreen() {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshingDashboard}
+            onRefresh={() => {
+              void handleDashboardRefresh();
+            }}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+            progressViewOffset={Platform.OS === 'android' ? 0 : undefined}
+          />
+        }
       >
       {/* Today's overview - below top bar */}
-      <Text style={styles.overviewLabel}>Today's overview</Text>
+      <View style={styles.overviewBanner}>
+        <View style={styles.overviewBannerHeader}>
+          <View style={styles.overviewIconWrap}>
+            <MaterialIcons name="insights" size={18} color={colors.white} />
+          </View>
+          <View style={styles.overviewTextWrap}>
+            <Text style={styles.overviewLabel}>Today's overview</Text>
+            <Text style={styles.overviewSubLabel}>Your outlet activity snapshot for today</Text>
+          </View>
+        </View>
+        <View style={styles.overviewDateBadge}>
+          <MaterialIcons name="calendar-today" size={14} color={colors.primary} />
+          <Text style={styles.overviewDateText}>{todayLabel}</Text>
+        </View>
+      </View>
 
       {/* 2. Summary Cards (2x2) */}
       <View style={styles.section}>
@@ -252,13 +295,6 @@ export default function DashboardScreen() {
               </View>
             </>
           )}
-          <View style={styles.actionItem}>
-            <ActionButton
-              label="Manage Schedule"
-              icon="schedule"
-              onPress={() => router.push('/(tabs)/outlets')}
-            />
-          </View>
           <View style={styles.actionItem}>
             <ActionButton
               label="Make Payment"
@@ -399,9 +435,57 @@ const styles = StyleSheet.create({
   },
   overviewLabel: {
     fontSize: fontSizes.lg,
+    fontWeight: fontWeights.bold,
+    color: colors.white,
+  },
+  overviewBanner: {
+    backgroundColor: colors.primary,
+    borderRadius: 20,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    ...cardShadow,
+  },
+  overviewBannerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  overviewIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  overviewTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  overviewSubLabel: {
+    marginTop: 2,
+    fontSize: fontSizes.xs,
+    color: 'rgba(255,255,255,0.85)',
+  },
+  overviewDateBadge: {
+    marginTop: spacing.sm,
+    alignSelf: 'flex-start',
+    backgroundColor: colors.white,
+    borderRadius: 999,
+    paddingVertical: 5,
+    paddingHorizontal: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  overviewDateText: {
+    fontSize: fontSizes.xs,
     fontWeight: fontWeights.semibold,
     color: colors.primary,
-    marginBottom: spacing.lg,
   },
   iconButtonPressed: {
     opacity: 0.8,

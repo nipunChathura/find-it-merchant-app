@@ -6,6 +6,15 @@ export type ScheduleType = (typeof SCHEDULE_TYPES)[number];
 
 export const SCHEDULE_DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'] as const;
 
+/** Response body from POST /api/outlets/:outletId/schedules (fields vary by backend) */
+export interface CreateScheduleResponse {
+  id?: number;
+  scheduleType?: string;
+  responseCode?: string;
+  responseMessage?: string;
+  [key: string]: unknown;
+}
+
 /** Request body for POST (create) and PUT (update) schedule */
 export interface CreateSchedulePayload {
   scheduleType: ScheduleType;
@@ -68,12 +77,18 @@ export async function fetchOutletScheduleDetails(
 }
 
 /**
- * Create a schedule. POST /api/merchant-app/outlets/:outletId/schedule-details
+ * Create a schedule. POST /api/outlets/:outletId/schedules
  * For NORMAL with multiple days, call once per day (same payload, different dayOfWeek).
  */
-export async function createSchedule(outletId: string, payload: CreateSchedulePayload): Promise<unknown> {
-  const { data } = await apiClient.post<unknown>(API_ENDPOINTS.outletScheduleCreate(outletId), payload);
-  return data;
+export async function createSchedule(
+  outletId: string,
+  payload: CreateSchedulePayload
+): Promise<CreateScheduleResponse | undefined> {
+  const { data } = await apiClient.post<CreateScheduleResponse>(
+    API_ENDPOINTS.outletScheduleCreate(outletId),
+    payload
+  );
+  return data ?? undefined;
 }
 
 /**

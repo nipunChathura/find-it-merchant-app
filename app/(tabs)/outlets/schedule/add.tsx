@@ -13,25 +13,20 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenContainer } from '@/components/dashboard';
 import { AppInput } from '@/components/ui/AppInput';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { DatePickerField, TimePickerField } from '@/components/ui/SchedulePickerFields';
 import {
     createSchedule,
     isValidTimeHHmm,
     SCHEDULE_DAYS,
     SCHEDULE_TYPES,
     type CreateSchedulePayload,
+    type CreateScheduleResponse,
     type ScheduleType,
 } from '@/services/scheduleService';
 import { colors } from '@/theme/colors';
 import { layout, spacing } from '@/theme/spacing';
 import { fontSizes, fontWeights } from '@/theme/typography';
-
-/** Format local date to YYYY-MM-DD */
-function toYYYYMMDD(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
+import { parseYYYYMMDDToDate, toYYYYMMDD } from '@/utils/scheduleDateTime';
 
 const TODAY = toYYYYMMDD(new Date());
 
@@ -116,21 +111,29 @@ export default function AddScheduleScreen() {
       if (scheduleType === 'NORMAL' && selectedDays.size > 0) {
         const days = Array.from(selectedDays);
         let failed = 0;
+        const responses: CreateScheduleResponse[] = [];
         for (const day of days) {
           try {
-            await createSchedule(outletId, buildPayload(day));
+            const res = await createSchedule(outletId, buildPayload(day));
+            if (res) responses.push(res);
           } catch {
             failed += 1;
           }
         }
         if (failed === 0) {
+          if (__DEV__ && responses.length) {
+            console.log('[AddSchedule] create response(s)', responses);
+          }
           router.back();
         } else {
           setError(`Added ${days.length - failed} schedule(s). Failed to add ${failed}.`);
         }
       } else {
         const payload = buildPayload(null);
-        await createSchedule(outletId, payload);
+        const res = await createSchedule(outletId, payload);
+        if (__DEV__ && res) {
+          console.log('[AddSchedule] create response', res);
+        }
         router.back();
       }
     } catch {
@@ -192,55 +195,24 @@ export default function AddScheduleScreen() {
           )}
 
           {(scheduleType === 'EMERGENCY' || scheduleType === 'DAILY') && (
-            <>
-              <Text style={styles.label}>Date (YYYY-MM-DD)</Text>
-              <AppInput
-                placeholder="e.g. 2025-03-15"
-                value={specialDate}
-                onChangeText={setSpecialDate}
-                style={styles.input}
-                editable={!loading}
-              />
-            </>
+            <DatePickerField label="Date" value={specialDate} onChange={setSpecialDate} disabled={loading} />
           )}
 
           {scheduleType === 'TEMPORARY' && (
             <>
-              <Text style={styles.label}>Start date (YYYY-MM-DD)</Text>
-              <AppInput
-                placeholder="e.g. 2025-03-01"
-                value={startDate}
-                onChangeText={setStartDate}
-                style={styles.input}
-                editable={!loading}
-              />
-              <Text style={styles.label}>End date (YYYY-MM-DD)</Text>
-              <AppInput
-                placeholder="e.g. 2025-03-07"
+              <DatePickerField label="Start date" value={startDate} onChange={setStartDate} disabled={loading} />
+              <DatePickerField
+                label="End date"
                 value={endDate}
-                onChangeText={setEndDate}
-                style={styles.input}
-                editable={!loading}
+                onChange={setEndDate}
+                disabled={loading}
+                minimumDate={parseYYYYMMDDToDate(startDate)}
               />
             </>
           )}
 
-          <Text style={styles.label}>Open time (HH:mm)</Text>
-          <AppInput
-            placeholder="e.g. 09:00"
-            value={openTime}
-            onChangeText={setOpenTime}
-            style={styles.input}
-            editable={!loading}
-          />
-          <Text style={styles.label}>Close time (HH:mm)</Text>
-          <AppInput
-            placeholder="e.g. 18:00"
-            value={closeTime}
-            onChangeText={setCloseTime}
-            style={styles.input}
-            editable={!loading}
-          />
+          <TimePickerField label="Open time" value={openTime} onChange={setOpenTime} disabled={loading} />
+          <TimePickerField label="Close time" value={closeTime} onChange={setCloseTime} disabled={loading} />
 
           <View style={styles.switchRow}>
             <Text style={styles.label}>Closed (no opening this slot)</Text>

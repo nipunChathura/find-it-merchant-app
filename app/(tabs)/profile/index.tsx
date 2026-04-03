@@ -3,8 +3,8 @@ import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ScreenContainer } from '@/components/dashboard';
 import { AuthImage } from '@/components/ui/AuthImage';
 import { useAuth } from '@/context/auth-context';
 import { colors } from '@/theme/colors';
@@ -33,6 +33,7 @@ function InfoRow({ icon, label, value }: { icon: 'person' | 'email' | 'phone' | 
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, token, signOut } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const merchant = user?.role === 'SUBMERCHANT' ? user.subMerchantInfo : user?.mainMerchantInfo;
   const displayName = merchant?.merchantName ?? user?.username ?? 'Merchant';
@@ -43,8 +44,8 @@ export default function ProfileScreen() {
   const merchantType = merchant?.merchantType;
 
   return (
-    <ScreenContainer>
-      <View style={styles.pageHeader}>
+    <View style={styles.screen}>
+      <View style={[styles.pageHeader, { paddingTop: Math.max(insets.top, spacing.sm) }]}>
         <Text style={styles.pageHeaderTitle}>Profile</Text>
       </View>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -122,17 +123,20 @@ export default function ProfileScreen() {
           <Text style={styles.logoutText}>Sign Out</Text>
         </Pressable>
       </ScrollView>
-    </ScreenContainer>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   pageHeader: {
     backgroundColor: colors.primary,
+    paddingTop: spacing.lg,
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.xl,
-    marginHorizontal: -spacing.page,
-    marginBottom: spacing.xl,
     borderBottomLeftRadius: cardRadius,
     borderBottomRightRadius: cardRadius,
     ...headerShadow,
@@ -145,6 +149,7 @@ const styles = StyleSheet.create({
   },
   scroll: {
     padding: spacing.page,
+    paddingTop: spacing.xl,
     paddingBottom: spacing.xxxl,
   },
   profileHeader: {

@@ -125,7 +125,11 @@ export default function ItemDetailsScreen() {
         {/* Title & price */}
         <View style={styles.titleBlock}>
           <Text style={styles.title}>{item.itemName}</Text>
-          <Text style={styles.price}>LKR {Number(item.price).toLocaleString()}</Text>
+          <Text style={styles.price}>
+            {item.price != null && !Number.isNaN(Number(item.price))
+              ? `LKR ${Number(item.price).toLocaleString()}`
+              : 'No price set'}
+          </Text>
         </View>
 
         {/* Description */}

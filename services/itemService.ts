@@ -16,7 +16,7 @@ export interface ItemApiDto {
   itemName: string;
   itemDescription?: string;
   itemImage?: string | null;
-  price: number;
+  price?: number | null;
   categoryId?: number;
   categoryName?: string;
   categoryTypeName?: string;
@@ -64,7 +64,8 @@ export interface CreateItemRequestBody {
   itemDescription?: string | null;
   categoryId?: number | null;
   outletId: number;
-  price: number;
+  /** Omit or null when price not set (backend-dependent). */
+  price: number | null;
   availability: boolean;
   itemImage?: string | null;
 }
@@ -75,7 +76,7 @@ export interface UpdateItemRequestBody {
   itemDescription?: string | null;
   categoryId?: number | null;
   outletId: number;
-  price: number;
+  price: number | null;
   availability: boolean;
   itemImage?: string | null;
   status: 'ACTIVE' | 'INACTIVE';
