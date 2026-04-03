@@ -1,11 +1,8 @@
 import { Stack } from 'expo-router';
-
 export default function PaymentsLayout() {
-  return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="index" />
-      <Stack.Screen name="submit" />
-      <Stack.Screen name="edit" />
-    </Stack>
-  );
+    return (<Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index"/>
+      <Stack.Screen name="submit"/>
+      <Stack.Screen name="edit"/>
+    </Stack>);
 }

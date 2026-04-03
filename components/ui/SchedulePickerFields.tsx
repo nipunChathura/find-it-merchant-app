@@ -2,12 +2,12 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Modal,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
+    Modal,
+    Platform,
+    Pressable,
+    StyleSheet,
+    Text,
+    View,
 } from 'react-native';
 
 import { AppInput } from '@/components/ui/AppInput';
@@ -15,10 +15,10 @@ import { colors } from '@/theme/colors';
 import { inputRadius, spacing } from '@/theme/spacing';
 import { fontSizes, fontWeights } from '@/theme/typography';
 import {
-  dateFromHHmmString,
-  formatHHmmFromDate,
-  parseYYYYMMDDToDate,
-  toYYYYMMDD,
+    dateFromHHmmString,
+    formatHHmmFromDate,
+    parseYYYYMMDDToDate,
+    toYYYYMMDD,
 } from '@/utils/scheduleDateTime';
 
 type PickerFieldProps = {
@@ -132,6 +132,7 @@ export function DatePickerField({
                 themeVariant="light"
               />
             </View>
+
           </View>
         </Modal>
       ) : null}
@@ -228,6 +229,7 @@ export function TimePickerField({
               </View>
               <DateTimePicker value={iosDraft} mode="time" display="spinner" is24Hour onChange={onIosChange} themeVariant="light" />
             </View>
+
           </View>
         </Modal>
       ) : null}

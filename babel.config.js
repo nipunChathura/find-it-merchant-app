@@ -1,13 +1,13 @@
 module.exports = function (api) {
-  api.cache(true);
-  return {
-    presets: [
-      [
-        'babel-preset-expo',
-        {
-          'react-compiler': false,
-        },
-      ],
-    ],
-  };
+    api.cache(true);
+    return {
+        presets: [
+            [
+                'babel-preset-expo',
+                {
+                    'react-compiler': false,
+                },
+            ],
+        ],
+    };
 };
